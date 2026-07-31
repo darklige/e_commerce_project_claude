@@ -24,6 +24,9 @@ class AdminRole(enum.StrEnum):
     BUSINESS_ADMIN = "BUSINESS_ADMIN"
     CUSTOMER_SERVICE_ADMIN = "CUSTOMER_SERVICE_ADMIN"
     TECH_ADMIN = "TECH_ADMIN"
+    # Phase 6 — subdivided customer-service roles.
+    CUSTOMER_SERVICE_LEAD = "CUSTOMER_SERVICE_LEAD"
+    CUSTOMER_SERVICE_AGENT = "CUSTOMER_SERVICE_AGENT"
 
 
 class AdminStatus(enum.StrEnum):
@@ -51,3 +54,6 @@ class AdminUser(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
         default=AdminStatus.ACTIVE,
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

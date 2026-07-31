@@ -392,6 +392,19 @@ frontend-user-web/
 - [x] 购物车/下单
 - [x] 订单管理/售后
 
+### Phase 6.5：管理员账号管理（Admin Console）✅
+- [x] 后端账号 CRUD：`GET/POST /admin/users`、`PATCH /admin/users/{id}`、`disable|enable|reset-password`
+- [x] 自助改密：`POST /admin/auth/change-password`（成功后强制登出）
+- [x] 客服角色细分：`CS_LEAD`（客服组长 · 可释放/重派仲裁单）/ `CS_AGENT`（普通客服 · 仅待认领/本人仲裁单）
+- [x] 角色变更级联：释放认领中仲裁单 + 吊销全部 refresh token + 写审计 + 站内信通知
+- [x] 保护规则：最后一名活动 SUPER_ADMIN 不可降级/禁用（4005）；自操作拦截（4003）
+- [x] 数据范围：CS_AGENT 仅见 `admin_arbitrating` 且 `arbitrator_admin_id IS NULL` 或 = 本人
+- [x] 审计日志：`GET /admin/audit-logs`（actor/action/target/ip 过滤 + 分页）
+- [x] 权限矩阵：`GET /admin/rbac`（角色 → 权限键 + 中文 label）
+- [x] 前端：`/console/users`（账号管理）· `/console/rbac`（权限矩阵）· `/console/logs`（审计日志）
+- [x] Alembic `0007_admin_management`：admin_role 枚举扩展 + `password_changed_at` + 仲裁单索引
+- [x] 测试：`tests/test_admin_accounts.py` 15 用例，全量 153 passed；前端 typecheck / build / lint 全绿
+
 ### Phase 7：打磨与测试（2 周）✅
 - [x] 端到端测试（Playwright · e2e/ workspace · 6 spec）
 - [x] 性能优化（Alembic 0006 补索引 · selectinload 消除 N+1）

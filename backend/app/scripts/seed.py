@@ -119,6 +119,18 @@ ADMINS: tuple[AdminSeed, ...] = (
         role=AdminRole.CUSTOMER_SERVICE_ADMIN,
     ),
     AdminSeed(
+        username="cslead01",
+        password="cslead_pwd_change_me",  # noqa: S106
+        display_name="客服组长",
+        role=AdminRole.CUSTOMER_SERVICE_LEAD,
+    ),
+    AdminSeed(
+        username="csagent01",
+        password="csagent_pwd_change_me",  # noqa: S106
+        display_name="普通客服",
+        role=AdminRole.CUSTOMER_SERVICE_AGENT,
+    ),
+    AdminSeed(
         username="tech01",
         password="tech_pwd_change_me",  # noqa: S106
         display_name="技术管理员",
@@ -142,6 +154,18 @@ ADMINS: tuple[AdminSeed, ...] = (
         password="Passw0rd!",  # noqa: S106
         display_name="客服管理员",
         role=AdminRole.CUSTOMER_SERVICE_ADMIN,
+    ),
+    AdminSeed(
+        username="admin_cs_lead",
+        password="Passw0rd!",  # noqa: S106
+        display_name="客服组长",
+        role=AdminRole.CUSTOMER_SERVICE_LEAD,
+    ),
+    AdminSeed(
+        username="admin_cs_agent",
+        password="Passw0rd!",  # noqa: S106
+        display_name="普通客服",
+        role=AdminRole.CUSTOMER_SERVICE_AGENT,
     ),
     AdminSeed(
         username="admin_tech",

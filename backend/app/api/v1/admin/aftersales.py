@@ -29,7 +29,7 @@ router = APIRouter()
 @router.get("", summary="List all aftersales cases")
 async def list_aftersales(
     session: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_READ_ALL)),
+    admin: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_READ_ALL)),
     status_: str | None = Query(default=None, alias="status"),
     type_: str | None = Query(default=None, alias="type"),
     shop_id: int | None = Query(default=None),
@@ -41,6 +41,7 @@ async def list_aftersales(
 ) -> dict[str, Any]:
     items, total = await aftersales_service.admin_list(
         session,
+        admin,
         status_filter=status_,
         type_filter=type_,
         shop_id=shop_id,
@@ -73,9 +74,26 @@ async def stats_overview(
 async def get_aftersales(
     aftersales_id: int,
     session: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_READ_ALL)),
+    admin: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_READ_ALL)),
 ) -> dict[str, Any]:
-    detail = await aftersales_service.admin_get_detail(session, aftersales_id)
+    detail = await aftersales_service.admin_get_detail(session, admin, aftersales_id)
+    return envelope(data=detail.model_dump(mode="json"))
+
+
+@router.post("/{aftersales_id}/release", summary="Release a claimed case back to the pool")
+async def release_aftersales(
+    aftersales_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    admin: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_MANAGE)),
+) -> dict[str, Any]:
+    detail = await aftersales_service.admin_release(
+        session,
+        admin,
+        aftersales_id,
+        ip=get_client_ip(request),
+        user_agent=get_user_agent(request),
+    )
     return envelope(data=detail.model_dump(mode="json"))
 
 

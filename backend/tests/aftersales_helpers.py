@@ -41,6 +41,9 @@ async def headers_admin(client: AsyncClient, username: str = "super") -> dict[st
     pwd_map = {
         "super": "super_pwd_change_me",
         "cs01": "cs_pwd_change_me",
+        "cslead01": "cslead_pwd_change_me",
+        "csagent01": "csagent_pwd_change_me",
+        "tech01": "tech_pwd_change_me",
     }
     tokens = await login_admin_get_tokens(client, username, pwd_map[username])
     return bearer(tokens["access_token"])

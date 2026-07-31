@@ -154,6 +154,8 @@ async def seed_admins(db_session: AsyncSession) -> dict[str, AdminUser]:
         (AdminRole.SUPER_ADMIN, "super", "super_pwd_change_me"),
         (AdminRole.BUSINESS_ADMIN, "biz01", "biz_pwd_change_me"),
         (AdminRole.CUSTOMER_SERVICE_ADMIN, "cs01", "cs_pwd_change_me"),
+        (AdminRole.CUSTOMER_SERVICE_LEAD, "cslead01", "cslead_pwd_change_me"),
+        (AdminRole.CUSTOMER_SERVICE_AGENT, "csagent01", "csagent_pwd_change_me"),
         (AdminRole.TECH_ADMIN, "tech01", "tech_pwd_change_me"),
     ):
         row = AdminUser(

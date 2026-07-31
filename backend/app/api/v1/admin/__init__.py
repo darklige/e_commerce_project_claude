@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1.admin import (
     aftersales,
+    audit_logs,
     auth,
     brands,
     categories,
@@ -13,16 +14,22 @@ from app.api.v1.admin import (
     merchant_applications,
     notifications,
     orders,
+    rbac,
     review_reports,
     reviews,
     spus,
     tasks,
+    users,
 )
 
 router = APIRouter()
 
 router.include_router(auth.router, prefix="/auth", tags=["admin.auth"])
 router.include_router(me.router, prefix="/me", tags=["admin.me"])
+# Phase 6 — admin account management / RBAC matrix / audit log console.
+router.include_router(users.router, prefix="/users", tags=["admin.users"])
+router.include_router(rbac.router, prefix="/rbac", tags=["admin.rbac"])
+router.include_router(audit_logs.router, prefix="/audit-logs", tags=["admin.audit-logs"])
 router.include_router(
     merchant_applications.router,
     prefix="/merchant-applications",

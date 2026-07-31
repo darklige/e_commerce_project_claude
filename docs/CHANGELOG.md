@@ -9,7 +9,15 @@
 ## [Unreleased]
 
 ### Added
-- （项目已达 v1.0.0；后续版本按 semver 独立规划）
+- **Phase 6 管理员账号管理（Admin Console）**
+  - `backend`：`admin_users` 账号 CRUD + 角色变更 / 禁用 / 启用 / 重置密码 + 审计日志 + 权限矩阵
+  - 细分客服角色：`CS_LEAD`（客服组长，可释放/重派仲裁单）与 `CS_AGENT`（普通客服，仅处理待认领/自己认领的仲裁单）
+  - 角色变更级联：释放认领中的仲裁单 + 吊销全部 refresh token + 写审计 + 通知目标管理员与客服组长
+  - 保护规则：最后一名活动 SUPER_ADMIN 不可降级/禁用（`ADMIN_LAST_SUPER_ADMIN=4005`）；自操作返回 `ADMIN_CANNOT_OPERATE_SELF=4003`
+  - 数据范围：CS_AGENT 仅可见 `admin_arbitrating` 且未认领/已认领给自己的仲裁单
+  - Alembic 迁移 `0007_admin_management`：admin_role 枚举扩展 + `password_changed_at` + 仲裁单索引
+  - `frontend-admin`：`/console/users` 账号管理、`/console/rbac` 权限矩阵、`/console/logs` 审计日志（新增 5 个权限键与 2 个角色元数据，Sidebar 三项入口 available）
+  - 后端测试：`tests/test_admin_accounts.py` 15 个用例，全量 153 passed
 
 ---
 

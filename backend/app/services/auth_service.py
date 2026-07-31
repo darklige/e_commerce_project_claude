@@ -140,6 +140,14 @@ async def _revoke_all_refresh_for_subject(
     await session.flush()
 
 
+async def revoke_all_sessions_for_admin(session: AsyncSession, admin_id: int) -> None:
+    """Revoke every outstanding refresh token for an admin (kicks them out).
+
+    Access tokens keep working until their own 15-minute ``exp`` — no
+    central blacklist (Phase 6 decision)."""
+    await _revoke_all_refresh_for_subject(session, SubjectType.ADMIN, admin_id)
+
+
 def _build_user_brief(user: User) -> UserBrief:
     return UserBrief(
         id=user.id,
@@ -408,6 +416,37 @@ async def login_admin(
 # ---------------------------------------------------------------------------
 # Refresh / logout — shared across the three domains
 # ---------------------------------------------------------------------------
+async def admin_change_password(
+    session: AsyncSession,
+    admin: AdminUser,
+    old_password: str,
+    new_password: str,
+    *,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> None:
+    """Verify old password, rewrite the hash, revoke all self refresh tokens."""
+    if not verify_password(old_password, admin.password_hash):
+        raise AppException(ErrorCode.OLD_PASSWORD_MISMATCH, "old password mismatch")
+
+    admin.password_hash = hash_password(new_password)
+    admin.password_changed_at = datetime.now(UTC)
+    await session.flush()
+
+    await revoke_all_sessions_for_admin(session, admin.id)
+
+    await write_audit(
+        session,
+        actor_type=AuditActorType.ADMIN,
+        actor_id=admin.id,
+        action="admin.password.change",
+        target_type="admin_user",
+        target_id=admin.id,
+        ip=ip,
+        user_agent=user_agent,
+    )
+
+
 async def refresh_tokens(
     session: AsyncSession,
     refresh_token_plaintext: str,
@@ -585,6 +624,7 @@ __all__ = [
     "ACCESS_TOKEN_TTL",
     "FORGOT_PASSWORD_TTL_SECONDS",
     "REFRESH_TOKEN_TTL",
+    "admin_change_password",
     "forgot_password",
     "generate_initial_merchant_password",
     "hash_new_password",
@@ -595,4 +635,5 @@ __all__ = [
     "refresh_tokens",
     "register_user",
     "reset_password",
+    "revoke_all_sessions_for_admin",
 ]

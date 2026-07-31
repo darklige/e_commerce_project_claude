@@ -96,24 +96,24 @@ const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     href: "/console/users",
-    label: "用户管理",
-    requires: ["admin:user:manage"],
-    group: "operation",
-    available: false,
+    label: "账号管理",
+    requires: ["admin:user:read", "admin:user:manage"],
+    group: "system",
+    available: true,
   },
   {
     href: "/console/rbac",
-    label: "权限管理",
-    requires: ["admin:rbac:manage"],
+    label: "权限矩阵",
+    requires: ["admin:rbac:read"],
     group: "system",
-    available: false,
+    available: true,
   },
   {
     href: "/console/logs",
-    label: "系统日志",
+    label: "审计日志",
     requires: ["admin:audit_log:read"],
     group: "system",
-    available: false,
+    available: true,
   },
 ];
 
@@ -248,7 +248,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-[color:var(--color-border)] px-4 py-3 text-[11px] text-neutral-400">
-        Phase 5 · 评价 / 通知
+        Phase 6 · 账号 / 权限 / 审计日志
       </div>
     </aside>
   );

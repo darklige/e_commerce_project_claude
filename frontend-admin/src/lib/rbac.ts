@@ -23,6 +23,10 @@ export enum AdminRole {
   CUSTOMER_SERVICE_ADMIN = "CUSTOMER_SERVICE_ADMIN",
   /** 技术管理员：系统配置、日志、权限分配 */
   TECH_ADMIN = "TECH_ADMIN",
+  /** Phase 6 客服组长：仲裁 + 派单管理（释放/重派） */
+  CUSTOMER_SERVICE_LEAD = "CUSTOMER_SERVICE_LEAD",
+  /** Phase 6 普通客服：仅可见待认领 / 自己认领的仲裁单 */
+  CUSTOMER_SERVICE_AGENT = "CUSTOMER_SERVICE_AGENT",
 }
 
 /**
@@ -66,11 +70,15 @@ export type Permission =
   | "admin:review:moderate"
   | "admin:review_report:handle"
   | "admin:notification:read"
+  // ---- Phase 6 契约新增：管理员账号管理 / 权限矩阵 / 售后派单 ----
+  | "admin:user:read"
+  | "admin:user:manage"
+  | "admin:rbac:read"
+  | "admin:aftersales:manage"
   // ---- 后续 Phase 预留（暂无对应权限时返回 false，UI 侧 disabled）----
   | "admin:product:review"
   | "admin:order:read"
   | "admin:refund:arbitrate"
-  | "admin:user:manage"
   | "admin:rbac:manage";
 
 /** 角色元信息（用于 UI badge、下拉展示） */
@@ -102,6 +110,13 @@ export interface AdminRoleMeta {
    * - admin:review:moderate         → SUPER, BUSINESS, CUSTOMER_SERVICE
    * - admin:review_report:handle    → SUPER, CUSTOMER_SERVICE
    * - admin:notification:read       → 任何 admin
+   *
+   * Phase 6 契约追加：
+   * - admin:user:read               → SUPER, TECH_ADMIN（只读账号列表）
+   * - admin:user:manage             → SUPER（账号增删改）
+   * - admin:rbac:read               → SUPER, BUSINESS_ADMIN, TECH_ADMIN
+   * - admin:aftersales:manage       → SUPER, CUSTOMER_SERVICE_LEAD（释放/重派）
+   * - 新增角色：CUSTOMER_SERVICE_LEAD / CUSTOMER_SERVICE_AGENT
    */
   defaultPermissions: readonly Permission[];
 }
@@ -134,8 +149,10 @@ export const ADMIN_ROLE_META: Record<AdminRole, AdminRoleMeta> = {
       "admin:review_report:handle",
       "admin:notification:read",
       "admin:refund:arbitrate",
+      "admin:user:read",
       "admin:user:manage",
-      "admin:rbac:manage",
+      "admin:rbac:read",
+      "admin:aftersales:manage",
     ],
   },
   [AdminRole.BUSINESS_ADMIN]: {
@@ -181,6 +198,42 @@ export const ADMIN_ROLE_META: Record<AdminRole, AdminRoleMeta> = {
       "admin:notification:read",
     ],
   },
+  [AdminRole.CUSTOMER_SERVICE_LEAD]: {
+    role: AdminRole.CUSTOMER_SERVICE_LEAD,
+    label: "客服组长",
+    tone: "info",
+    description: "仲裁 + 售后派单管理（释放 / 重派）",
+    defaultPermissions: [
+      "admin:self:read",
+      "admin:spu:read_all",
+      "admin:order:read_all",
+      "admin:order:intervene",
+      "admin:order:add_note",
+      "admin:aftersales:read_all",
+      "admin:aftersales:arbitrate",
+      "admin:aftersales:force_refund",
+      "admin:aftersales:add_note",
+      "admin:aftersales:manage",
+      "admin:review:moderate",
+      "admin:review_report:handle",
+      "admin:notification:read",
+    ],
+  },
+  [AdminRole.CUSTOMER_SERVICE_AGENT]: {
+    role: AdminRole.CUSTOMER_SERVICE_AGENT,
+    label: "普通客服",
+    tone: "info",
+    description: "仅处理待认领 / 自己认领的仲裁单",
+    defaultPermissions: [
+      "admin:self:read",
+      "admin:spu:read_all",
+      "admin:order:read_all",
+      "admin:aftersales:read_all",
+      "admin:aftersales:arbitrate",
+      "admin:aftersales:add_note",
+      "admin:notification:read",
+    ],
+  },
   [AdminRole.TECH_ADMIN]: {
     role: AdminRole.TECH_ADMIN,
     label: "技术管理员",
@@ -189,8 +242,8 @@ export const ADMIN_ROLE_META: Record<AdminRole, AdminRoleMeta> = {
     defaultPermissions: [
       "admin:self:read",
       "admin:audit_log:read",
-      "admin:user:manage",
-      "admin:rbac:manage",
+      "admin:user:read",
+      "admin:rbac:read",
       "admin:notification:read",
     ],
   },

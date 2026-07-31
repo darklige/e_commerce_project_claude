@@ -34,6 +34,9 @@ secrets/
 # ============ Logs & Temp ============
 *.log
 logs/
+# Next.js App Router 路由目录名恰为 logs，需显式放行
+!frontend-admin/src/app/(console)/console/logs/
+!frontend-admin/src/app/(console)/console/logs/**
 tmp/
 temp/
 *.bak

@@ -98,6 +98,36 @@ async def notify_merchants_of_shop(
         logger.warning("notify_merchants_of_shop failed shop_id=%s err=%s", shop_id, exc)
 
 
+async def notify_admin(
+    session: AsyncSession,
+    admin_id: int,
+    category: NotificationCategory,
+    title: str,
+    body: str,
+    *,
+    action_url: str | None = None,
+    related_type: str | None = None,
+    related_id: int | None = None,
+) -> None:
+    """Send a single notification to one admin; swallow errors."""
+    try:
+        session.add(
+            Notification(
+                recipient_type=NotificationRecipientType.ADMIN,
+                recipient_id=admin_id,
+                category=category,
+                title=title,
+                body=body,
+                action_url=action_url,
+                related_type=related_type,
+                related_id=related_id,
+            )
+        )
+        await session.flush()
+    except Exception as exc:
+        logger.warning("notify_admin failed admin_id=%s err=%s", admin_id, exc)
+
+
 async def notify_admins(
     session: AsyncSession,
     category: NotificationCategory,
@@ -302,6 +332,7 @@ __all__ = [
     "list_",
     "mark_all_read",
     "mark_read",
+    "notify_admin",
     "notify_admins",
     "notify_merchants_of_shop",
     "notify_user",
