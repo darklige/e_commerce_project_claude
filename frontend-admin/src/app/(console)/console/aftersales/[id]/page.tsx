@@ -47,6 +47,7 @@ import { useAdmin } from "@/hooks/useAuth";
 import {
   addAdminNote,
   forceRefund,
+  releaseArbitration,
   resolveArbitration,
 } from "@/lib/aftersales-api";
 import { ApiError } from "@/lib/api";
@@ -74,7 +75,7 @@ export default function AdminAftersalesDetailPage(props: PageProps) {
   );
 }
 
-type ModalKind = "resolve" | "force-refund" | "note" | null;
+type ModalKind = "resolve" | "force-refund" | "note" | "release" | null;
 
 function AdminAftersalesDetailInner({ id }: { id: string }) {
   const toast = useToast();
@@ -82,6 +83,8 @@ function AdminAftersalesDetailInner({ id }: { id: string }) {
   const canArbitrate = usePermission("admin:aftersales:arbitrate");
   const canForceRefund = usePermission("admin:aftersales:force_refund");
   const canAddNote = usePermission("admin:aftersales:add_note");
+  // 组长 / 超级管理员：可释放任意已认领仲裁单；客服专员可释放自己认领的单。
+  const canManage = usePermission("admin:aftersales:manage");
   const currentAdmin = useAdmin();
 
   const { data, isLoading, isError, error } = useAdminAftersalesDetail(id);
@@ -94,6 +97,16 @@ function AdminAftersalesDetailInner({ id }: { id: string }) {
     queryClient.invalidateQueries({ queryKey: ["admin", "aftersales-list"] });
     queryClient.invalidateQueries({ queryKey: ["admin", "aftersales-stats"] });
   };
+
+  const releaseMutation = useMutation({
+    mutationFn: () => releaseArbitration(id),
+    onSuccess: () => {
+      setModal(null);
+      toast.push({ type: "success", message: "仲裁单已释放回公共池" });
+      invalidate();
+    },
+    onError: (err) => showError(err, toast),
+  });
 
   const resolveMutation = useMutation({
     mutationFn: (payload: ResolveArbitrationPayload) =>
@@ -233,6 +246,12 @@ function AdminAftersalesDetailInner({ id }: { id: string }) {
               ) : null}
             </>
           ) : null}
+          {/* 释放回池：组长可释放任何人，认领本人也可释放自己 */}
+          {isArbitrating && isClaimed && (canManage || isClaimedByMe) ? (
+            <Button variant="secondary" onClick={() => setModal("release")}>
+              释放回池
+            </Button>
+          ) : null}
           {canDoForceRefund ? (
             <Button variant="danger" onClick={() => setModal("force-refund")}>
               强制退款
@@ -250,6 +269,13 @@ function AdminAftersalesDetailInner({ id }: { id: string }) {
       {isArbitrating && isClaimedByMe ? (
         <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           您已认领此仲裁，请及时处理。仲裁一旦作出即生效，不可撤销。
+        </div>
+      ) : null}
+
+      {/* 纯只读角色提示（如业务管理员） */}
+      {!canArbitrate && !canForceRefund && !canAddNote ? (
+        <div className="rounded border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+          您当前为只读权限，可查看完整售后信息，但无法执行认领、裁决、强制退款或内部备注。
         </div>
       ) : null}
 
@@ -446,6 +472,43 @@ function AdminAftersalesDetailInner({ id }: { id: string }) {
         onSubmit={(note) => noteMutation.mutate(note)}
         submitting={noteMutation.isPending}
       />
+
+      {/* 释放回公共池确认 */}
+      <Modal
+        open={modal === "release"}
+        onClose={() => setModal(null)}
+        closeOnOverlay={!releaseMutation.isPending}
+        title="释放仲裁单回公共池"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setModal(null)}
+              disabled={releaseMutation.isPending}
+            >
+              取消
+            </Button>
+            <Button
+              variant="danger"
+              loading={releaseMutation.isPending}
+              onClick={() => releaseMutation.mutate()}
+            >
+              确认释放
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3 text-sm text-neutral-700">
+          <p>
+            确定要将仲裁单{" "}
+            <strong className="font-mono">{aftersales.aftersales_no}</strong>{" "}
+            释放回公共池吗？
+          </p>
+          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            释放后该单回到未认领状态，任何客服专员均可接手；当前认领人将失去操作权。
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }

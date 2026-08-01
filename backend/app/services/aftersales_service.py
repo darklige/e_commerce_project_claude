@@ -19,6 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import AppException, ErrorCode
+from app.core.rbac import (
+    AftersalesScope,
+    Permission,
+    aftersales_scope_for_admin,
+    permissions_for_admin,
+)
 from app.models.admin_user import AdminUser
 from app.models.aftersales import (
     Aftersales,
@@ -1424,8 +1430,26 @@ async def merchant_note(
 # Admin: list / detail / take-over / resolve / force-refund / note /
 # stats-overview
 # ---------------------------------------------------------------------------
+def _apply_admin_scope(where: list[Any], admin: AdminUser) -> list[Any]:
+    """Constrain the query to what ``admin`` may see.
+
+    ``CUSTOMER_SERVICE_AGENT`` only sees ``admin_arbitrating`` cases that
+    are unclaimed or claimed by themselves; every other role sees all.
+    """
+    if aftersales_scope_for_admin(admin.role) == AftersalesScope.OWN_AND_UNCLAIMED:
+        where.append(Aftersales.status == AftersalesStatus.ADMIN_ARBITRATING)
+        where.append(
+            or_(
+                Aftersales.arbitrator_admin_id.is_(None),
+                Aftersales.arbitrator_admin_id == admin.id,
+            )
+        )
+    return where
+
+
 async def admin_list(
     session: AsyncSession,
+    admin: AdminUser,
     *,
     status_filter: str | None,
     type_filter: str | None,
@@ -1437,6 +1461,7 @@ async def admin_list(
     size: int,
 ) -> tuple[list[AftersalesListItemOut], int]:
     where: list[Any] = [Aftersales.deleted_at.is_(None)]
+    where = _apply_admin_scope(where, admin)
     statuses = _split_status_multi(status_filter)
     if statuses:
         where.append(Aftersales.status.in_(statuses))
@@ -1477,8 +1502,83 @@ async def admin_list(
     return _serialize_list(rows), total
 
 
-async def admin_get_detail(session: AsyncSession, aftersales_id: int) -> AftersalesDetailOut:
+async def admin_get_detail(
+    session: AsyncSession, admin: AdminUser, aftersales_id: int
+) -> AftersalesDetailOut:
     row = await _load(session, aftersales_id)
+    if aftersales_scope_for_admin(admin.role) == AftersalesScope.OWN_AND_UNCLAIMED:
+        visible = row.status == AftersalesStatus.ADMIN_ARBITRATING and (
+            row.arbitrator_admin_id is None or row.arbitrator_admin_id == admin.id
+        )
+        if not visible:
+            raise AppException(
+                ErrorCode.AFTERSALES_NOT_CLAIMED_BY_SELF,
+                "case is outside your scope",
+            )
+    return await _serialize_detail(session, row)
+
+
+async def admin_release(
+    session: AsyncSession,
+    admin: AdminUser,
+    aftersales_id: int,
+    *,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> AftersalesDetailOut:
+    """Put a claimed case back into the pool.
+
+    Allowed for: anyone with ``admin:aftersales:manage`` (CS lead / super),
+    or the admin who claimed the case themselves (self-release). The route
+    guard only requires ``admin:aftersales:arbitrate``; the finer check lives
+    here.
+    """
+    row = await _load(session, aftersales_id)
+    if row.status != AftersalesStatus.ADMIN_ARBITRATING:
+        raise AppException(
+            ErrorCode.AFTERSALES_NOT_ESCALATED,
+            "case not in arbitration",
+        )
+    if row.arbitrated_at is not None:
+        raise AppException(
+            ErrorCode.AFTERSALES_ARBITRATION_ALREADY_DONE,
+            "case already arbitrated",
+        )
+    if row.arbitrator_admin_id is None:
+        raise AppException(
+            ErrorCode.AFTERSALES_NOT_CLAIMED_BY_SELF,
+            "case is unclaimed, nothing to release",
+        )
+    can_manage = Permission.ADMIN_AFTERSALES_MANAGE in permissions_for_admin(
+        admin.role
+    )
+    if not can_manage and row.arbitrator_admin_id != admin.id:
+        raise AppException(
+            ErrorCode.AFTERSALES_NOT_CLAIMED_BY_SELF,
+            "only the claimant or a lead may release this case",
+        )
+    previous_owner = row.arbitrator_admin_id
+    row.arbitrator_admin_id = None
+    await _write_message(
+        session,
+        row,
+        sender_type=AftersalesMessageSenderType.SYSTEM,
+        sender_id=None,
+        kind=AftersalesMessageKind.SYSTEM_NOTICE,
+        content=f"case released to the pool by admin #{admin.id} (was #{previous_owner})",
+    )
+    await session.flush()
+    await write_audit(
+        session,
+        actor_type=AuditActorType.ADMIN,
+        actor_id=admin.id,
+        action="admin.aftersales.release",
+        target_type="aftersales",
+        target_id=row.id,
+        ip=ip,
+        user_agent=user_agent,
+        extra={"previous_owner": previous_owner},
+    )
     return await _serialize_detail(session, row)
 
 
@@ -1696,35 +1796,34 @@ def _today_range() -> tuple[datetime, datetime]:
     return start, end
 
 
-async def admin_stats_overview(session: AsyncSession) -> AftersalesStatsOverviewOut:
+async def admin_stats_overview(
+    session: AsyncSession, admin: AdminUser
+) -> AftersalesStatsOverviewOut:
     start, end = _today_range()
+    # Stats must be consistent with what the same admin sees in the list, so
+    # the per-role data scope is applied to every count too (e.g. a CS agent
+    # only ever sees admin_arbitrating cases that are unclaimed or their own).
+    where: list[Any] = [Aftersales.deleted_at.is_(None)]
+    where = _apply_admin_scope(where, admin)
 
     async def _c(*conds: Any) -> int:
-        stmt = select(func.count(Aftersales.id)).where(*conds)
+        stmt = select(func.count(Aftersales.id)).where(*where, *conds)
         return int((await session.execute(stmt)).scalar_one())
 
-    pending = await _c(
-        Aftersales.deleted_at.is_(None),
-        Aftersales.status == AftersalesStatus.PENDING_MERCHANT_REVIEW,
-    )
+    pending = await _c(Aftersales.status == AftersalesStatus.PENDING_MERCHANT_REVIEW)
     escalated_pending = await _c(
-        Aftersales.deleted_at.is_(None),
         Aftersales.status == AftersalesStatus.ADMIN_ARBITRATING,
         Aftersales.arbitrator_admin_id.is_(None),
     )
-    in_progress = await _c(
-        Aftersales.deleted_at.is_(None),
-        Aftersales.status.notin_(FINAL_STATUSES),
-    )
+    in_progress = await _c(Aftersales.status.notin_(FINAL_STATUSES))
     resolved_today = await _c(
-        Aftersales.deleted_at.is_(None),
         Aftersales.closed_at.is_not(None),
         Aftersales.closed_at >= start,
         Aftersales.closed_at < end,
     )
-    # avg resolution hours over all resolved cases
+    # avg resolution hours over resolved cases within scope
     stmt = select(Aftersales.created_at, Aftersales.closed_at).where(
-        Aftersales.deleted_at.is_(None),
+        *where,
         Aftersales.closed_at.is_not(None),
     )
     rows = list((await session.execute(stmt)).all())
@@ -1917,6 +2016,7 @@ __all__ = [
     "admin_get_detail",
     "admin_list",
     "admin_note",
+    "admin_release",
     "admin_resolve",
     "admin_stats_overview",
     "admin_take_over",

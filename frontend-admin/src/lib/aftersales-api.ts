@@ -7,12 +7,13 @@
  * - POST /admin/aftersales/{id}/take-over              认领仲裁
  * - POST /admin/aftersales/{id}/resolve                仲裁裁决（3 种 outcome）
  * - POST /admin/aftersales/{id}/force-refund           强制退款
+ * - POST /admin/aftersales/{id}/release                释放回池
  * - POST /admin/aftersales/{id}/note                   内部备注
  * - GET  /admin/aftersales/stats/overview              大盘统计
  *
  * 权限：
  * - listAdminAftersales / getAdminAftersales / getAftersalesStats → admin:aftersales:read_all
- * - takeOver / resolveArbitration                                → admin:aftersales:arbitrate
+ * - takeOver / resolveArbitration / releaseArbitration            → admin:aftersales:arbitrate
  * - forceRefund                                                  → admin:aftersales:force_refund
  * - addAdminNote                                                 → admin:aftersales:add_note
  */
@@ -146,6 +147,23 @@ export function forceRefund(
   return apiPost<AdminAftersalesDetail, ForceRefundPayload>(
     `admin/aftersales/${id}/force-refund`,
     payload,
+  );
+}
+
+/**
+ * POST /admin/aftersales/{id}/release
+ * 权限：admin:aftersales:arbitrate（服务层限定：manage 角色可释放任何人，
+ *      客服专员仅可释放自己认领的单）。
+ * 允许状态：admin_arbitrating（且 arbitrator_admin_id 非空）。
+ * 效果：arbitrator_admin_id → null（回到公共池），写 audit + 系统消息。
+ * 错误：18001 未升级至平台 / 18003 已仲裁 / 18005 无权释放
+ */
+export function releaseArbitration(
+  id: number | string,
+): Promise<AdminAftersalesDetail> {
+  return apiPost<AdminAftersalesDetail, Record<string, never>>(
+    `admin/aftersales/${id}/release`,
+    {},
   );
 }
 

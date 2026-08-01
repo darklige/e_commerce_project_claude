@@ -136,13 +136,19 @@ export function Modal({
         )}
       >
         {(title || showClose) && (
-          <header className="flex items-center justify-between border-b border-[color:var(--color-border)] px-4 py-3">
-            <h2
-              id="modal-title"
-              className="text-sm font-semibold text-neutral-900"
-            >
-              {title}
-            </h2>
+          <header className="flex items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="bg-brand-gradient inline-block h-3.5 w-1 rounded-full"
+              />
+              <h2
+                id="modal-title"
+                className="text-sm font-semibold text-neutral-900"
+              >
+                {title}
+              </h2>
+            </div>
             {showClose ? (
               <button
                 type="button"
@@ -159,7 +165,7 @@ export function Modal({
           {children}
         </div>
         {footer ? (
-          <footer className="flex items-center justify-end gap-2 border-t border-[color:var(--color-border)] bg-neutral-50 px-4 py-3">
+          <footer className="flex items-center justify-end gap-2 border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] px-4 py-3">
             {footer}
           </footer>
         ) : null}

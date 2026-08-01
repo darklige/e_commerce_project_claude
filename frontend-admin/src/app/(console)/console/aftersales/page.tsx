@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/Input";
 import { FormField } from "@/components/ui/FormField";
 import { StatCard } from "@/components/console/StatCard";
 import { Table, type TableColumn } from "@/components/ui/Table";
+import { TakeOverButton } from "@/components/aftersales/TakeOverButton";
 import {
   AFTERSALES_STATUS_OPTIONS,
   AftersalesStatusBadge,
@@ -44,6 +45,8 @@ import {
   useAdminAftersales,
   useAftersalesStats,
 } from "@/hooks/useAftersales";
+import { useAdmin, usePermission } from "@/hooks/useAuth";
+import { AdminRole } from "@/lib/rbac";
 import type {
   AdminAftersalesListItem,
   AftersalesStatus,
@@ -69,6 +72,17 @@ export default function AdminAftersalesPage() {
 function AdminAftersalesInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const currentAdmin = useAdmin();
+  const canArbitrate = usePermission("admin:aftersales:arbitrate");
+  // 客服专员数据范围只覆盖 admin_arbitrating（未认领 / 本人认领），
+  // 因此其 tab 与统计卡做对应收窄，避免"卡片有数、表格为空"的错觉。
+  const isAgent = currentAdmin?.role === AdminRole.CUSTOMER_SERVICE_AGENT;
+  const tabs = isAgent
+    ? AFTERSALES_STATUS_OPTIONS.filter(
+        (t) => t.key === "all" || t.key === "admin_arbitrating",
+      )
+    : AFTERSALES_STATUS_OPTIONS;
 
   const initialStatus = (searchParams.get("status") ?? "all") as StatusKey;
   const initialKeyword = searchParams.get("keyword") ?? "";
@@ -278,15 +292,30 @@ function AdminAftersalesInner() {
       key: "actions",
       title: "操作",
       align: "right",
-      width: 80,
-      render: (row) => (
-        <Link
-          href={`/console/aftersales/${row.id}`}
-          className="text-[color:var(--color-info)] hover:underline"
-        >
-          查看详情
-        </Link>
-      ),
+      width: 120,
+      render: (row) => {
+        const claimable =
+          canArbitrate &&
+          row.status === "admin_arbitrating" &&
+          !row.arbitrator_admin;
+        return (
+          <div className="flex flex-col items-end gap-1">
+            {claimable ? (
+              <TakeOverButton
+                aftersalesId={row.id}
+                alreadyTakenOver={false}
+                size="sm"
+              />
+            ) : null}
+            <Link
+              href={`/console/aftersales/${row.id}`}
+              className="text-[color:var(--color-info)] hover:underline"
+            >
+              查看详情
+            </Link>
+          </div>
+        );
+      },
     },
   ];
 
@@ -311,70 +340,108 @@ function AdminAftersalesInner() {
         </Button>
       </header>
 
-      {/* 4 张统计卡 */}
+      {/* 客服专员数据范围提示 */}
+      {isAgent ? (
+        <div className="rounded border border-[color:var(--color-info-100)] bg-[color:var(--color-info-50)] px-3 py-2 text-xs text-[color:var(--color-info-800)]">
+          您为客服专员：仅可见未认领或由您认领的仲裁单；表格每 30 秒自动刷新。
+        </div>
+      ) : null}
+
+      {/* 统计卡 */}
       <section
         aria-label="售后大盘"
         className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
-        <StatCard
-          label="待商家审核"
-          value={
-            stats.isLoading
-              ? "…"
-              : stats.isError
-                ? "—"
-                : String(stats.data?.pending_review_count ?? 0)
-          }
-          hint="pending_merchant_review 状态数"
-          tone="warning"
-        />
-        <StatCard
-          label="待仲裁"
-          value={
-            stats.isLoading
-              ? "…"
-              : stats.isError
-                ? "—"
-                : String(stats.data?.escalated_pending_count ?? 0)
-          }
-          hint="已升级到平台且尚未认领"
-          tone="danger"
-        />
-        <StatCard
-          label="处理中总数"
-          value={
-            stats.isLoading
-              ? "…"
-              : stats.isError
-                ? "—"
-                : String(stats.data?.in_progress_count ?? 0)
-          }
-          hint="非最终态售后单总数"
-          tone="info"
-        />
-        <StatCard
-          label="今日已解决"
-          value={
-            stats.isLoading
-              ? "…"
-              : stats.isError
-                ? "—"
-                : String(stats.data?.resolved_today_count ?? 0)
-          }
-          hint={
-            stats.isLoading || stats.isError
-              ? "平均解决时长 —"
-              : `平均解决时长 ${(stats.data?.avg_resolution_hours ?? 0).toFixed(
-                  1,
-                )} h`
-          }
-          tone="success"
-        />
+        {isAgent ? (
+          <>
+            <StatCard
+              label="可认领仲裁"
+              value={
+                stats.isLoading
+                  ? "…"
+                  : stats.isError
+                    ? "—"
+                    : String(stats.data?.escalated_pending_count ?? 0)
+              }
+              hint="尚未被认领、可接手处理"
+              tone="danger"
+            />
+            <StatCard
+              label="我的在办"
+              value={
+                stats.isLoading
+                  ? "…"
+                  : stats.isError
+                    ? "—"
+                    : String(stats.data?.in_progress_count ?? 0)
+              }
+              hint="未认领 + 本人认领的仲裁中"
+              tone="info"
+            />
+          </>
+        ) : (
+          <>
+            <StatCard
+              label="待商家审核"
+              value={
+                stats.isLoading
+                  ? "…"
+                  : stats.isError
+                    ? "—"
+                    : String(stats.data?.pending_review_count ?? 0)
+              }
+              hint="pending_merchant_review 状态数"
+              tone="warning"
+            />
+            <StatCard
+              label="待仲裁"
+              value={
+                stats.isLoading
+                  ? "…"
+                  : stats.isError
+                    ? "—"
+                    : String(stats.data?.escalated_pending_count ?? 0)
+              }
+              hint="已升级到平台且尚未认领"
+              tone="danger"
+            />
+            <StatCard
+              label="处理中总数"
+              value={
+                stats.isLoading
+                  ? "…"
+                  : stats.isError
+                    ? "—"
+                    : String(stats.data?.in_progress_count ?? 0)
+              }
+              hint="非最终态售后单总数"
+              tone="info"
+            />
+            <StatCard
+              label="今日已解决"
+              value={
+                stats.isLoading
+                  ? "…"
+                  : stats.isError
+                    ? "—"
+                    : String(stats.data?.resolved_today_count ?? 0)
+              }
+              hint={
+                stats.isLoading || stats.isError
+                  ? "平均解决时长 —"
+                  : `平均解决时长 ${(stats.data?.avg_resolution_hours ?? 0).toFixed(
+                      1,
+                    )} h`
+              }
+              tone="success"
+            />
+          </>
+        )}
       </section>
 
       {/* Status tab */}
       <div className="flex items-center gap-1 overflow-x-auto border-b border-[color:var(--color-border)]">
-        {AFTERSALES_STATUS_OPTIONS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -504,7 +571,11 @@ function AdminAftersalesInner() {
         rows={rows}
         loading={isLoading}
         rowKey={(row) => row.id}
-        emptyText="暂无符合条件的售后单"
+        emptyText={
+          isAgent
+            ? "当前没有待认领或由您认领的仲裁单，表格会每 30 秒自动刷新，有新单会自动出现。"
+            : "暂无符合条件的售后单"
+        }
         pagination={{
           page,
           size: PAGE_SIZE,

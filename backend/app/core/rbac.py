@@ -98,6 +98,11 @@ class Permission(enum.StrEnum):
     ADMIN_REVIEW_MODERATE = "admin:review:moderate"
     ADMIN_REVIEW_REPORT_HANDLE = "admin:review_report:handle"
     ADMIN_NOTIFICATION_READ = "admin:notification:read"
+    # admin scope — Phase 6 · admin account management
+    ADMIN_USER_READ = "admin:user:read"
+    ADMIN_USER_MANAGE = "admin:user:manage"
+    ADMIN_RBAC_READ = "admin:rbac:read"
+    ADMIN_AFTERSALES_MANAGE = "admin:aftersales:manage"
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +228,8 @@ ROLE_PERMISSIONS: dict[AdminRole, frozenset[Permission]] = {
             # Phase 5
             Permission.ADMIN_REVIEW_MODERATE,
             Permission.ADMIN_NOTIFICATION_READ,
+            # Phase 6 — view-only access to the permission matrix
+            Permission.ADMIN_RBAC_READ,
         }
     ),
     AdminRole.CUSTOMER_SERVICE_ADMIN: frozenset(
@@ -243,6 +250,39 @@ ROLE_PERMISSIONS: dict[AdminRole, frozenset[Permission]] = {
             Permission.ADMIN_NOTIFICATION_READ,
         }
     ),
+    AdminRole.CUSTOMER_SERVICE_LEAD: frozenset(
+        {
+            Permission.ADMIN_SELF_READ,
+            Permission.ADMIN_SPU_READ_ALL,
+            Permission.ADMIN_ORDER_READ_ALL,
+            Permission.ADMIN_ORDER_INTERVENE,
+            Permission.ADMIN_ORDER_ADD_NOTE,
+            # Phase 4
+            Permission.ADMIN_AFTERSALES_READ_ALL,
+            Permission.ADMIN_AFTERSALES_ARBITRATE,
+            Permission.ADMIN_AFTERSALES_FORCE_REFUND,
+            Permission.ADMIN_AFTERSALES_ADD_NOTE,
+            # Phase 5
+            Permission.ADMIN_REVIEW_MODERATE,
+            Permission.ADMIN_REVIEW_REPORT_HANDLE,
+            Permission.ADMIN_NOTIFICATION_READ,
+            # Phase 6 — can release / reassign claimed arbitration cases
+            Permission.ADMIN_AFTERSALES_MANAGE,
+        }
+    ),
+    AdminRole.CUSTOMER_SERVICE_AGENT: frozenset(
+        {
+            Permission.ADMIN_SELF_READ,
+            Permission.ADMIN_SPU_READ_ALL,
+            Permission.ADMIN_ORDER_READ_ALL,
+            # Phase 4 — agent works the arbitration pool only
+            Permission.ADMIN_AFTERSALES_READ_ALL,
+            Permission.ADMIN_AFTERSALES_ARBITRATE,
+            Permission.ADMIN_AFTERSALES_ADD_NOTE,
+            # Phase 5
+            Permission.ADMIN_NOTIFICATION_READ,
+        }
+    ),
     AdminRole.TECH_ADMIN: frozenset(
         {
             Permission.ADMIN_SELF_READ,
@@ -250,9 +290,31 @@ ROLE_PERMISSIONS: dict[AdminRole, frozenset[Permission]] = {
             Permission.ADMIN_TASK_RUN,
             # Phase 5 — admins should always see their inbox
             Permission.ADMIN_NOTIFICATION_READ,
+            # Phase 6 — read-only visibility of admin accounts
+            Permission.ADMIN_USER_READ,
+            Permission.ADMIN_RBAC_READ,
         }
     ),
 }
+
+
+class AftersalesScope(enum.StrEnum):
+    """Data-scope for aftersales arbitration visibility."""
+
+    ALL = "all"
+    OWN_AND_UNCLAIMED = "own_and_unclaimed"
+
+
+def aftersales_scope_for_admin(role: AdminRole) -> AftersalesScope:
+    """Return the aftersales data-scope for a role.
+
+    ``CUSTOMER_SERVICE_AGENT`` only sees cases that are unclaimed or
+    claimed by themselves (still in ``admin_arbitrating``); every other
+    role sees the whole queue.
+    """
+    if role == AdminRole.CUSTOMER_SERVICE_AGENT:
+        return AftersalesScope.OWN_AND_UNCLAIMED
+    return AftersalesScope.ALL
 
 
 def permissions_for_admin(role: AdminRole) -> frozenset[Permission]:
