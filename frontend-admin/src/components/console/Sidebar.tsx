@@ -123,6 +123,13 @@ const GROUP_LABEL: Record<NavItem["group"], string> = {
   system: "系统",
 };
 
+/** 分组小圆点颜色：用色相区分三块业务域，克制而可辨识 */
+const GROUP_DOT: Record<NavItem["group"], string> = {
+  business: "bg-[color:var(--color-info)]",
+  operation: "bg-[color:var(--color-warning)]",
+  system: "bg-[color:var(--color-primary)]",
+};
+
 export function Sidebar() {
   const permissions = useAuthStore((s) => s.permissions);
   const pathname = usePathname();
@@ -165,15 +172,23 @@ export function Sidebar() {
       aria-label="主导航"
       className="hidden w-60 shrink-0 flex-col border-r border-[color:var(--color-border)] bg-white md:flex"
     >
-      <div className="flex h-14 items-center border-b border-[color:var(--color-border)] px-4">
+      <div className="flex h-14 items-center gap-2.5 border-b border-[color:var(--color-border)] px-4">
+        <span
+          aria-hidden
+          className="bg-brand-gradient inline-flex h-7 w-7 items-center justify-center rounded-md text-white shadow-sm"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden>
+            <path
+              fillRule="evenodd"
+              d="M4 3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1.5a2 2 0 0 1-1.4-.6L12 4.6A2 2 0 0 0 10.6 4H4Z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </span>
         <Link
           href="/console"
-          className="flex items-center gap-2 text-sm font-semibold text-[color:var(--color-primary)]"
+          className="flex items-center text-sm font-semibold text-[color:var(--color-primary)]"
         >
-          <span
-            aria-hidden
-            className="inline-block h-6 w-6 rounded bg-[color:var(--color-primary)]"
-          />
           JD-Clone Admin
         </Link>
       </div>
@@ -182,7 +197,8 @@ export function Sidebar() {
         {groups.map(({ group, label, items }) =>
           items.length === 0 ? null : (
             <div key={group} className="mb-4">
-              <div className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+              <div className="flex items-center gap-1.5 px-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${GROUP_DOT[group]}`} />
                 {label}
               </div>
               <ul className="flex flex-col gap-0.5">
@@ -210,13 +226,19 @@ export function Sidebar() {
                         href={item.href}
                         aria-current={active ? "page" : undefined}
                         className={clsx(
-                          "flex items-center justify-between rounded px-3 py-2 text-sm transition",
+                          "group relative flex items-center justify-between rounded-md px-3 py-2 text-sm transition",
                           active
-                            ? "bg-[color:var(--color-primary-100)] text-[color:var(--color-primary)] font-medium"
-                            : "text-neutral-700 hover:bg-neutral-100 hover:text-[color:var(--color-primary)]",
+                            ? "bg-[color:var(--color-primary-100)] font-medium text-[color:var(--color-primary-800)]"
+                            : "text-neutral-600 hover:bg-[color:var(--color-primary-50)] hover:text-[color:var(--color-primary-800)]",
                         )}
                       >
-                        <span>{item.label}</span>
+                        {active ? (
+                          <span
+                            aria-hidden
+                            className="bg-brand-gradient absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full"
+                          />
+                        ) : null}
+                        <span className="pl-1">{item.label}</span>
                         {item.href === "/console/aftersales" &&
                         pendingArbitration > 0 ? (
                           <span
@@ -247,7 +269,7 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="border-t border-[color:var(--color-border)] px-4 py-3 text-[11px] text-neutral-400">
+      <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-primary-50)] px-4 py-3 text-[11px] text-[color:var(--color-primary-700)]">
         Phase 6 · 账号 / 权限 / 审计日志
       </div>
     </aside>

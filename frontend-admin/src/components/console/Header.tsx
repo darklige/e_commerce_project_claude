@@ -45,7 +45,13 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-[color:var(--color-border)] bg-white px-6">
-      <div className="text-sm text-neutral-500">平台管理后台</div>
+      <div className="flex items-center gap-2 text-sm text-neutral-500">
+        <span
+          aria-hidden
+          className="bg-brand-gradient inline-block h-2 w-2 rounded-full"
+        />
+        平台管理后台
+      </div>
 
       <div className="relative flex items-center gap-3" ref={menuRef}>
         <NotificationBell />

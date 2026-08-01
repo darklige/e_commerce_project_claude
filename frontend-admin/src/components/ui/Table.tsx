@@ -62,7 +62,7 @@ export function Table<T>({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13px]">
           <thead>
-            <tr className="border-b border-[color:var(--color-border)] bg-neutral-50 text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
+            <tr className="border-b border-[color:var(--color-border)] bg-[color:var(--color-primary-50)] text-left text-xs font-medium uppercase tracking-wide text-[color:var(--color-primary-800)]">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -104,7 +104,7 @@ export function Table<T>({
             ) : (
               rows.map((row, index) => (
                 <Fragment key={rowKey(row, index)}>
-                  <tr className="border-b border-[color:var(--color-border)] transition hover:bg-neutral-50">
+                  <tr className="border-b border-[color:var(--color-border)] transition hover:bg-[color:var(--color-primary-50)]/60">
                     {columns.map((col) => (
                       <td
                         key={col.key}

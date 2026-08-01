@@ -3,39 +3,53 @@
 /*
  * Tailwind CSS v4 主题变量 —— 平台管理员后台。
  *
- * 设计意图：
- * - 管理端追求"严肃、克制、信息密度高"，故主色使用中性 slate/深灰
- *   （--color-primary: #0f172a），刻意与用户端京东红、商家端运营色区分。
- * - 强调色 --color-danger 仅用于破坏性操作（强制退款、封禁、下架）。
- * - 表格 / 卡片沿用中性灰阶（--color-surface / --color-border）。
+ * 设计意图（Phase 6 UI 打磨）：
+ * - 管理端基调仍是"沉稳、克制、信息密度高"，但在中性灰底上引入
+ *   靛蓝（indigo）品牌色，让交互焦点、选中态、数据卡片有更清晰的
+ *   色彩层次，而不落入花哨。
+ * - 与用户端京东红、商家端亮蓝刻意区分：靛蓝偏紫，辨识度更高。
+ * - 语义色统一提供 -soft 柔和底，用于状态卡片 / 徽章 / 提示条。
+ * - 品牌渐变仅用于 Logo、登录页背景、主按钮等"少数高光点"。
  */
 @theme {
-  /* 主色：深灰蓝，用于主按钮、选中态、Sidebar 高亮 */
-  --color-primary: #0f172a;
-  --color-primary-50: #f8fafc;
-  --color-primary-100: #f1f5f9;
-  --color-primary-200: #e2e8f0;
-  --color-primary-300: #cbd5e1;
-  --color-primary-400: #94a3b8;
-  --color-primary-500: #64748b;
-  --color-primary-600: #475569;
-  --color-primary-700: #334155;
-  --color-primary-800: #1e293b;
-  --color-primary-900: #0f172a;
+  /* 品牌主色：靛蓝（偏紫），用于主按钮、选中态、Sidebar 高亮、焦点环 */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+  --color-primary: #4338ca;
+
+  /* 品牌渐变的明暗端点（供 bg-brand-gradient 等类使用） */
+  --color-brand-from: #6366f1;
+  --color-brand-to: #3730a3;
+
+  /* 辅助强调色：青色，用于图表点缀 / 信息流高亮 */
+  --color-accent: #0891b2;
+  --color-accent-soft: #cffafe;
 
   /* 破坏性 / 高风险操作 */
   --color-danger: #dc2626;
   --color-danger-soft: #fee2e2;
 
-  /* 语义色 */
+  /* 语义色 + 柔和底（状态卡片 / 提示条通用） */
   --color-success: #16a34a;
+  --color-success-soft: #dcfce7;
   --color-warning: #d97706;
+  --color-warning-soft: #fef3c7;
   --color-info: #2563eb;
+  --color-info-soft: #dbeafe;
 
-  /* 表面 / 边框 */
+  /* 表面 / 边框 —— 更柔和的暖中性 */
   --color-surface: #ffffff;
-  --color-surface-muted: #f8fafc;
-  --color-border: #e2e8f0;
+  --color-surface-muted: #f6f7fb;
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
 
   /* Toast/Modal 淡入动画（Phase 7 §5.1 三端一致 300ms） */
   --animate-fade-in: fade-in 300ms ease-out;
@@ -43,6 +57,41 @@
   --font-sans:
     "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
+}
+
+/* 品牌渐变：仅用于 Logo、登录页、主按钮等少数高光点 */
+@layer utilities {
+  .bg-brand-gradient {
+    background-image: linear-gradient(
+      135deg,
+      var(--color-brand-from),
+      var(--color-brand-to)
+    );
+  }
+
+  .text-brand-gradient {
+    background-image: linear-gradient(
+      135deg,
+      var(--color-brand-from),
+      var(--color-brand-to)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* 柔和卡片阴影：比纯 border 更有层次但克制 */
+  .shadow-card {
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 4px 12px -2px rgba(79, 70, 229, 0.06);
+  }
+
+  .shadow-card-hover {
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.06),
+      0 10px 24px -6px rgba(79, 70, 229, 0.14);
+  }
 }
 
 /* 基础样式微调 */
@@ -80,6 +129,12 @@ a {
 
 ::-webkit-scrollbar-track {
   background-color: transparent;
+}
+
+/* 焦点可见性：全局统一使用品牌色，兼顾可访问性 */
+:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
 }
 
 /*

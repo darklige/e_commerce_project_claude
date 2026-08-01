@@ -32,13 +32,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
   primary:
-    "bg-[color:var(--color-primary)] text-white hover:bg-[color:var(--color-primary-800)] disabled:bg-[color:var(--color-primary-400)]",
+    "bg-brand-gradient text-white shadow-sm hover:brightness-110 disabled:brightness-90 disabled:shadow-none",
   secondary:
-    "border border-[color:var(--color-border)] bg-white text-neutral-800 hover:bg-neutral-50 disabled:text-neutral-400",
+    "border border-[color:var(--color-border)] bg-white text-neutral-700 hover:border-[color:var(--color-primary-200)] hover:bg-[color:var(--color-primary-50)] disabled:text-neutral-400",
   danger:
-    "bg-[color:var(--color-danger)] text-white hover:bg-red-700 disabled:bg-red-300",
+    "bg-[color:var(--color-danger)] text-white shadow-sm hover:bg-[#b91c1c] disabled:bg-red-300 disabled:shadow-none",
   ghost:
-    "bg-transparent text-[color:var(--color-primary)] hover:bg-neutral-100 disabled:text-neutral-400",
+    "bg-transparent text-[color:var(--color-primary-700)] hover:bg-[color:var(--color-primary-50)] disabled:text-neutral-400",
   link:
     "bg-transparent text-[color:var(--color-info)] hover:underline disabled:text-neutral-400 h-auto p-0",
 };
@@ -74,7 +74,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={isDisabled}
       aria-busy={loading || undefined}
       className={clsx(
-        "inline-flex items-center justify-center gap-1 rounded font-medium transition disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center gap-1 rounded font-medium transition disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-primary-400)]",
         variant !== "link" && SIZE_CLASS[size],
         VARIANT_CLASS[variant],
         fullWidth && "w-full",

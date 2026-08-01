@@ -31,7 +31,7 @@ export function NotificationBell({ className }: { className?: string }) {
         count > 0 ? `站内通知，未读 ${count} 条` : "站内通知"
       }
       className={clsx(
-        "relative inline-flex h-8 w-8 items-center justify-center rounded text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800",
+        "relative inline-flex h-8 w-8 items-center justify-center rounded text-neutral-500 hover:bg-[color:var(--color-primary-50)] hover:text-[color:var(--color-primary-800)]",
         className,
       )}
     >

@@ -76,12 +76,20 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-sm rounded-md border border-[color:var(--color-border)] bg-white p-6 shadow-sm">
+    <div className="w-full max-w-sm rounded-lg border border-[color:var(--color-border)] bg-white p-6 shadow-card">
       <div className="mb-6 flex flex-col items-center gap-1">
         <span
           aria-hidden
-          className="mb-2 inline-block h-9 w-9 rounded bg-[color:var(--color-primary)]"
-        />
+          className="bg-brand-gradient mb-2 inline-flex h-10 w-10 items-center justify-center rounded-lg text-white shadow-sm"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden>
+            <path
+              fillRule="evenodd"
+              d="M4 3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1.5a2 2 0 0 1-1.4-.6L12 4.6A2 2 0 0 0 10.6 4H4Z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </span>
         <h1 className="text-lg font-semibold text-neutral-900">JD-Clone Admin</h1>
         <p className="text-xs text-neutral-500">平台管理员通道</p>
       </div>
