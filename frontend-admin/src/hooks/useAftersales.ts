@@ -49,6 +49,8 @@ export function useAdminAftersales(
     queryKey: ["admin", "aftersales-list", query],
     queryFn: () => listAdminAftersales(query),
     placeholderData: (prev) => prev,
+    // 工作台性质：30s 轮询，保证仲裁池/状态不陈旧（refetchInterval 对 disabled 查询不生效）
+    refetchInterval: 30_000,
     ...options,
   });
 }
@@ -94,6 +96,8 @@ export function useAftersalesStats(
     queryKey: ["admin", "aftersales-stats"],
     queryFn: getAftersalesStats,
     staleTime: 30_000,
+    // 工作台性质：30s 轮询（refetchInterval 对 disabled 查询不生效）
+    refetchInterval: 30_000,
     ...options,
   });
 }

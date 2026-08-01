@@ -473,7 +473,7 @@ async def test_cs_lead_release_claimed_case(
 
 
 @pytest.mark.asyncio
-async def test_cs_agent_cannot_release(
+async def test_cs_agent_self_release(
     client: AsyncClient,
     seed_user: User,
     seed_admins: dict[str, AdminUser],
@@ -483,11 +483,82 @@ async def test_cs_agent_cannot_release(
     case = await _create_arbitrating_case(
         client, seed_user, seed_admins, seed_merchant_account, seed_catalog
     )
+    case_id = case["id"]
+
+    # Agent claims a case, then releases it back to the pool themselves.
     agent_headers = await headers_admin(client, "csagent01")
-    resp = await client.post(
-        f"/api/v1/admin/aftersales/{case['id']}/release", headers=agent_headers
+    claimed = (
+        await client.post(f"/api/v1/admin/aftersales/{case_id}/take-over", headers=agent_headers)
+    ).json()["data"]
+    assert claimed["arbitrator_admin_id"] == seed_admins["CUSTOMER_SERVICE_AGENT"].id
+
+    resp = await client.post(f"/api/v1/admin/aftersales/{case_id}/release", headers=agent_headers)
+    assert resp.json()["code"] == 0, resp.text
+    assert resp.json()["data"]["arbitrator_admin_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_cs_agent_cannot_release_others_claim(
+    client: AsyncClient,
+    seed_user: User,
+    seed_admins: dict[str, AdminUser],
+    seed_merchant_account: tuple[Any, Any],
+    seed_catalog: dict[str, Any],
+) -> None:
+    case = await _create_arbitrating_case(
+        client, seed_user, seed_admins, seed_merchant_account, seed_catalog
     )
-    assert resp.json()["code"] != 0  # permission denied
+    case_id = case["id"]
+
+    # CS_LEAD claims it; the agent has no manage permission and is not the
+    # claimant, so releasing must be denied.
+    lead_headers = await headers_admin(client, "cslead01")
+    await client.post(f"/api/v1/admin/aftersales/{case_id}/take-over", headers=lead_headers)
+
+    agent_headers = await headers_admin(client, "csagent01")
+    resp = await client.post(f"/api/v1/admin/aftersales/{case_id}/release", headers=agent_headers)
+    assert resp.json()["code"] == ErrorCode.AFTERSALES_NOT_CLAIMED_BY_SELF
+
+
+@pytest.mark.asyncio
+async def test_cs_agent_stats_scoped_to_own_and_unclaimed(
+    client: AsyncClient,
+    seed_user: User,
+    seed_admins: dict[str, AdminUser],
+    seed_merchant_account: tuple[Any, Any],
+    seed_catalog: dict[str, Any],
+) -> None:
+    case = await _create_arbitrating_case(
+        client, seed_user, seed_admins, seed_merchant_account, seed_catalog
+    )
+    case_id = case["id"]
+    agent_headers = await headers_admin(client, "csagent01")
+
+    # Unclaimed arbitrating case is inside the agent's scope.
+    agent_stats = (
+        await client.get("/api/v1/admin/aftersales/stats/overview", headers=agent_headers)
+    ).json()["data"]
+    assert agent_stats["escalated_pending_count"] >= 1
+    assert agent_stats["in_progress_count"] >= 1
+    # Statuses the agent can never see stay 0 (consistent with the list view).
+    assert agent_stats["pending_review_count"] == 0
+    assert agent_stats["resolved_today_count"] == 0
+
+    # Once the lead claims it, the case drops out of the agent's stats.
+    lead_headers = await headers_admin(client, "cslead01")
+    await client.post(f"/api/v1/admin/aftersales/{case_id}/take-over", headers=lead_headers)
+
+    agent_stats = (
+        await client.get("/api/v1/admin/aftersales/stats/overview", headers=agent_headers)
+    ).json()["data"]
+    assert agent_stats["escalated_pending_count"] == 0
+    assert agent_stats["in_progress_count"] == 0
+
+    # Full-view role still sees the claimed case as in progress.
+    super_stats = (
+        await client.get("/api/v1/admin/aftersales/stats/overview", headers=await headers_admin(client, "super"))
+    ).json()["data"]
+    assert super_stats["in_progress_count"] >= 1
 
 
 # ---------------------------------------------------------------------------

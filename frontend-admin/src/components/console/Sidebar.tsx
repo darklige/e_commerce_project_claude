@@ -270,7 +270,9 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-primary-50)] px-4 py-3 text-[11px] text-[color:var(--color-primary-700)]">
-        Phase 6 · 账号 / 权限 / 审计日志
+        {groups.find((g) => g.group === "system")?.items.length
+          ? "Phase 6 · 账号 / 权限 / 审计日志"
+          : "JD-Clone Admin Console"}
       </div>
     </aside>
   );

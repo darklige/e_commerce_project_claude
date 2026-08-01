@@ -30,6 +30,8 @@ export interface TakeOverButtonProps {
   alreadyTakenOver: boolean;
   onSuccess?: (detail: AdminAftersalesDetail) => void;
   className?: string;
+  /** 列表页行内快捷认领用小尺寸（sm）；详情页默认 md。 */
+  size?: "sm" | "md";
 }
 
 export function TakeOverButton({
@@ -37,6 +39,7 @@ export function TakeOverButton({
   alreadyTakenOver,
   onSuccess,
   className,
+  size = "md",
 }: TakeOverButtonProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -66,6 +69,7 @@ export function TakeOverButton({
   return (
     <Button
       variant="primary"
+      size={size}
       loading={mutation.isPending}
       disabled={alreadyTakenOver}
       onClick={() => mutation.mutate()}

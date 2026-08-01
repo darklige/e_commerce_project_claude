@@ -64,9 +64,9 @@ async def list_aftersales(
 @router.get("/stats/overview", summary="Aftersales work-station overview")
 async def stats_overview(
     session: AsyncSession = Depends(get_db),
-    _: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_READ_ALL)),
+    admin: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_READ_ALL)),
 ) -> dict[str, Any]:
-    result = await aftersales_service.admin_stats_overview(session)
+    result = await aftersales_service.admin_stats_overview(session, admin)
     return envelope(data=result.model_dump(mode="json"))
 
 
@@ -85,7 +85,7 @@ async def release_aftersales(
     aftersales_id: int,
     request: Request,
     session: AsyncSession = Depends(get_db),
-    admin: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_MANAGE)),
+    admin: AdminUser = Depends(require_admin_permission(Permission.ADMIN_AFTERSALES_ARBITRATE)),
 ) -> dict[str, Any]:
     detail = await aftersales_service.admin_release(
         session,
