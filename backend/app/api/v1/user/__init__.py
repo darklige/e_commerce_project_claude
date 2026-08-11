@@ -9,6 +9,7 @@ from app.api.v1.user import (
     aftersales,
     auth,
     cart,
+    discovery,
     me,
     merchant_applications,
     notifications,
@@ -31,13 +32,10 @@ router.include_router(
 router.include_router(addresses.router, prefix="/addresses", tags=["user.addresses"])
 router.include_router(cart.router, prefix="/cart", tags=["user.cart"])
 router.include_router(orders.router, prefix="/orders", tags=["user.orders"])
-# Payments mount at the user root so both /orders/{id}/pay and
-# /payment-sessions/{id}/... live in one router.
 router.include_router(payments.router, prefix="", tags=["user.payments"])
-# Aftersales router owns both /orders/{id}/aftersales and /aftersales/*.
 router.include_router(aftersales.router, prefix="", tags=["user.aftersales"])
 router.include_router(uploads.router, prefix="/uploads", tags=["user.uploads"])
-# Phase 5 — reviews / notifications / review-reports.
+router.include_router(discovery.router, prefix="/engagement", tags=["user.engagement"])
 router.include_router(reviews.router, prefix="", tags=["user.reviews"])
 router.include_router(review_reports.router, prefix="", tags=["user.review-reports"])
 router.include_router(notifications.router, prefix="/notifications", tags=["user.notifications"])

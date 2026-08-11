@@ -1,6 +1,8 @@
 package com.jdclone.app.data.repository
 
+import com.jdclone.app.data.local.AuthSubject
 import com.jdclone.app.data.local.AuthTokenManager
+import com.jdclone.app.data.local.SessionPrincipal
 import com.jdclone.app.data.local.SessionState
 import com.jdclone.app.data.network.ApiException
 import com.jdclone.app.data.network.ApiService
@@ -19,14 +21,6 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Auth 相关 Repository —— 登录 / 注册 / 忘记密码 / 修改密码 / 登出，
- * 以及冷启动时的 session 恢复（`bootstrap`）。
- *
- * 成功登录后会：
- *  1. 持久化 access + refresh token（[AuthTokenManager]）
- *  2. 更新 [SessionState] 让 UI 层跳到主界面
- */
 @Singleton
 class AuthRepository @Inject constructor(
     private val api: ApiService,
@@ -35,26 +29,42 @@ class AuthRepository @Inject constructor(
 ) {
     suspend fun bootstrap(): Result<UserDto?> = safeIo {
         val access = tokens.access()
-        if (access.isNullOrBlank()) {
-            session.markInitialized(user = null)
+        val subject = tokens.subject()
+        if (access.isNullOrBlank() || subject == null) {
+            session.markInitialized(principal = null)
             return@safeIo null
         }
         try {
-            val me = api.getMe().unwrap()
-            session.markInitialized(me.user)
-            me.user
-        } catch (t: Throwable) {
-            // getMe 失败（网络或 token 已失效）：清 token + 走登录页
+            when (subject) {
+                AuthSubject.USER -> {
+                    val me = api.getMe().unwrap()
+                    session.markInitialized(SessionPrincipal.User(me.user))
+                    me.user
+                }
+
+                AuthSubject.MERCHANT -> {
+                    val me = api.getMerchantMe().unwrap()
+                    session.markInitialized(
+                        SessionPrincipal.Merchant(
+                            account = me.merchantAccount,
+                            shop = me.shop,
+                            permissions = me.permissions,
+                        ),
+                    )
+                    null
+                }
+            }
+        } catch (_: Throwable) {
             tokens.clear()
-            session.markInitialized(user = null)
+            session.markInitialized(principal = null)
             null
         }
     }
 
     suspend fun login(identifier: String, password: String): Result<UserDto> = safeIo {
         val result = api.login(LoginRequest(identifier = identifier, password = password)).unwrap()
-        tokens.save(result.accessToken, result.refreshToken)
-        session.setLoggedIn(result.user)
+        tokens.save(result.accessToken, result.refreshToken, AuthSubject.USER)
+        session.setLoggedInUser(result.user)
         result.user
     }
 
@@ -72,8 +82,8 @@ class AuthRepository @Inject constructor(
                 nickname = nickname?.takeIf { it.isNotBlank() },
             ),
         ).unwrap()
-        tokens.save(result.accessToken, result.refreshToken)
-        session.setLoggedIn(result.user)
+        tokens.save(result.accessToken, result.refreshToken, AuthSubject.USER)
+        session.setLoggedInUser(result.user)
         result.user
     }
 
@@ -103,19 +113,24 @@ class AuthRepository @Inject constructor(
         avatarUrl: String? = null,
     ): Result<UserMeDto> = safeIo {
         val result = api.updateMe(UpdateProfileRequest(nickname, avatarUrl)).unwrap()
-        session.setLoggedIn(result.user)
+        session.setLoggedInUser(result.user)
         result
     }
 
     suspend fun logout(): Result<Unit> = safeIo {
         val refresh = tokens.refresh()
-        runCatching { api.logout(LogoutRequest(refreshToken = refresh)) }
+        val subject = tokens.subject()
+        runCatching {
+            when (subject) {
+                AuthSubject.MERCHANT -> api.merchantLogout(LogoutRequest(refreshToken = refresh))
+                else -> api.logout(LogoutRequest(refreshToken = refresh))
+            }
+        }
         tokens.clear()
         session.setLoggedOut()
     }
 }
 
-/** 通用 IO 包裹：捕获 [ApiException] + 其他异常，转成 [Result]。 */
 internal suspend inline fun <T> safeIo(crossinline block: suspend () -> T): Result<T> =
     withContext(Dispatchers.IO) {
         try {

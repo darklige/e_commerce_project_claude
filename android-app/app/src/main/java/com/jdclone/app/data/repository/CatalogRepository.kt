@@ -16,7 +16,7 @@ import javax.inject.Singleton
 class CatalogRepository @Inject constructor(private val api: ApiService) {
 
     suspend fun listCategories(): Result<List<CategoryDto>> = safeIo {
-        api.listCategories().unwrap()
+        api.listCategories().unwrap().items
     }
 
     suspend fun listBrands(page: Int = 1, size: Int = 20): Result<PageData<BrandDto>> = safeIo {
@@ -46,11 +46,11 @@ class CatalogRepository @Inject constructor(private val api: ApiService) {
     }
 
     suspend fun getRelated(id: Long, limit: Int = 8): Result<List<SpuListItemDto>> = safeIo {
-        api.getRelatedSpus(id, limit).unwrap()
+        api.getRelatedSpus(id, limit).unwrap().items
     }
 
     suspend fun getRecommendations(limit: Int = 10): Result<List<SpuListItemDto>> = safeIo {
-        api.getRecommendations(limit).unwrap()
+        api.getRecommendations(limit).unwrap().items
     }
 
     suspend fun getShop(id: Long): Result<ShopPublicDto> = safeIo {

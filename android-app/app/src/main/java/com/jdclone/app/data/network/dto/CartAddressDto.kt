@@ -29,6 +29,12 @@ data class CartSpuBriefDto(
 )
 
 @Serializable
+data class AddressListPayloadDto(
+    val items: List<AddressDto> = emptyList(),
+    val total: Int = 0,
+)
+
+@Serializable
 data class CartShopBriefDto(
     val id: Long,
     val name: String,

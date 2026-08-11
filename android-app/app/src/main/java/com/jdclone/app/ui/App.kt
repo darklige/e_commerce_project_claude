@@ -6,6 +6,7 @@ import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -27,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.jdclone.app.data.local.AuthState
+import com.jdclone.app.data.local.SessionPrincipal
 import com.jdclone.app.data.local.SessionState
 import com.jdclone.app.data.repository.AuthRepository
 import com.jdclone.app.ui.common.LoadingScreen
@@ -46,8 +48,23 @@ import com.jdclone.app.ui.screen.catalog.CategoryScreen
 import com.jdclone.app.ui.screen.catalog.HomeScreen
 import com.jdclone.app.ui.screen.catalog.ProductDetailScreen
 import com.jdclone.app.ui.screen.catalog.SearchScreen
+import com.jdclone.app.ui.screen.catalog.ShopDetailScreen
 import com.jdclone.app.ui.screen.checkout.CheckoutScreen
 import com.jdclone.app.ui.screen.checkout.MockPaymentScreen
+import com.jdclone.app.ui.screen.discovery.ActivityHallScreen
+import com.jdclone.app.ui.screen.discovery.CouponCenterScreen
+import com.jdclone.app.ui.screen.discovery.FavoritesScreen
+import com.jdclone.app.ui.screen.discovery.FollowsScreen
+import com.jdclone.app.ui.screen.discovery.FootprintsScreen
+import com.jdclone.app.ui.screen.merchant.MerchantAccountScreen
+import com.jdclone.app.ui.screen.merchant.MerchantAftersalesScreen
+import com.jdclone.app.ui.screen.merchant.MerchantDashboardScreen
+import com.jdclone.app.ui.screen.merchant.MerchantDecorationScreen
+import com.jdclone.app.ui.screen.merchant.MerchantMessagesScreen
+import com.jdclone.app.ui.screen.merchant.MerchantOrdersScreen
+import com.jdclone.app.ui.screen.merchant.MerchantProductsScreen
+import com.jdclone.app.ui.screen.merchant.MerchantReviewsScreen
+import com.jdclone.app.ui.screen.merchant.MerchantShippingScreen
 import com.jdclone.app.ui.screen.notifications.NotificationListScreen
 import com.jdclone.app.ui.screen.orders.OrderDetailScreen
 import com.jdclone.app.ui.screen.orders.OrderListScreen
@@ -57,9 +74,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * 应用入口 —— 根据 SessionState 分 Auth / Main 两套 NavGraph。
- */
 @HiltViewModel
 class AppBootstrapViewModel @Inject constructor(
     private val authRepo: AuthRepository,
@@ -75,17 +89,15 @@ class AppBootstrapViewModel @Inject constructor(
 @Composable
 fun App(bootstrap: AppBootstrapViewModel = hiltViewModel()) {
     val authState by bootstrap.authState.collectAsStateWithLifecycle()
-
-    when (authState) {
+    when (val state = authState) {
         AuthState.Loading -> LoadingScreen()
         AuthState.LoggedOut -> AuthGraphHost()
-        is AuthState.LoggedIn -> MainGraphHost()
+        is AuthState.LoggedIn -> when (state.principal) {
+            is SessionPrincipal.User -> UserGraphHost()
+            is SessionPrincipal.Merchant -> MerchantGraphHost()
+        }
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Auth graph
-// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun AuthGraphHost() {
@@ -93,107 +105,84 @@ private fun AuthGraphHost() {
     NavHost(navController = nav, startDestination = NavRoutes.LOGIN) {
         composable(NavRoutes.LOGIN) {
             LoginScreen(
-                onLoginSuccess = { /* SessionState 自动切换到 MainGraph */ },
+                onLoginSuccess = {},
                 onGoRegister = { nav.navigate(NavRoutes.REGISTER) },
                 onGoForgot = { nav.navigate(NavRoutes.FORGOT_PASSWORD) },
             )
         }
         composable(NavRoutes.REGISTER) {
-            RegisterScreen(
-                onRegistered = { /* SessionState 自动切换 */ },
-                onBackToLogin = { nav.popBackStack() },
-            )
+            RegisterScreen(onRegistered = {}, onBackToLogin = { nav.popBackStack() })
         }
         composable(NavRoutes.FORGOT_PASSWORD) {
-            ForgotPasswordScreen(
-                onDone = { nav.popBackStack() },
-                onGoReset = { _ -> nav.navigate(NavRoutes.RESET_PASSWORD) },
-            )
+            ForgotPasswordScreen(onDone = { nav.popBackStack() }, onGoReset = { nav.navigate(NavRoutes.RESET_PASSWORD) })
         }
         composable(NavRoutes.RESET_PASSWORD) {
-            ResetPasswordScreen(
-                onResetSuccess = { nav.popBackStack(NavRoutes.LOGIN, inclusive = false) },
-            )
+            ResetPasswordScreen(onResetSuccess = { nav.popBackStack(NavRoutes.LOGIN, inclusive = false) })
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main graph（登录后）
-// ─────────────────────────────────────────────────────────────────────────────
-
 @Composable
-private fun MainGraphHost() {
+private fun UserGraphHost() {
     val nav = rememberNavController()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = currentRoute in bottomTabRoutes
+    val showBottomBar = currentRoute in userBottomTabRoutes
 
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) BottomBar(nav)
-        },
-    ) { innerPadding ->
-        NavHost(
-            navController = nav,
-            startDestination = NavRoutes.HOME,
-            modifier = Modifier.padding(innerPadding),
-        ) {
-            // ── Bottom nav tabs ────────────────────────────────────────────
+    Scaffold(bottomBar = { if (showBottomBar) BottomBar(nav, userBottomTabs) }) { innerPadding ->
+        NavHost(navController = nav, startDestination = NavRoutes.HOME, modifier = Modifier.padding(innerPadding)) {
             composable(NavRoutes.HOME) {
                 HomeScreen(
                     onGoSearch = { nav.navigate(NavRoutes.SEARCH) },
-                    onGoProduct = { id -> nav.navigate(NavRoutes.productDetail(id)) },
-                    onGoCategory = { id -> nav.navigate(NavRoutes.categoryList(id)) },
+                    onGoProduct = { nav.navigate(NavRoutes.productDetail(it)) },
+                    onGoCategory = { nav.navigate(NavRoutes.categoryList(it)) },
+                    onGoActivityHall = { nav.navigate(NavRoutes.ACTIVITY_HALL) },
+                    onGoCouponCenter = { nav.navigate(NavRoutes.COUPON_CENTER) },
                 )
             }
             composable(NavRoutes.CATEGORY) {
-                CategoryScreen(
-                    onGoCategory = { id -> nav.navigate(NavRoutes.categoryList(id)) },
-                )
+                CategoryScreen(onGoCategory = { nav.navigate(NavRoutes.categoryList(it)) })
             }
             composable(NavRoutes.CART) {
                 CartScreen(
-                    onCheckout = { ids ->
-                        nav.navigate(NavRoutes.CHECKOUT + "?ids=${ids.joinToString(",")}")
-                    },
-                    onGoProduct = { id -> nav.navigate(NavRoutes.productDetail(id)) },
+                    onCheckout = { ids -> nav.navigate(NavRoutes.CHECKOUT + "?ids=${ids.joinToString(",")}") },
+                    onGoProduct = { nav.navigate(NavRoutes.productDetail(it)) },
                 )
             }
             composable(NavRoutes.PROFILE) {
                 ProfileScreen(
-                    onGoLogin = { /* 未登录用户理论上此页看不到，但保留兜底 */ },
+                    onGoLogin = {},
                     onGoOrders = { nav.navigate(NavRoutes.ORDER_LIST) },
                     onGoAftersales = { nav.navigate(NavRoutes.AFTERSALES_LIST) },
                     onGoAddresses = { nav.navigate(NavRoutes.ADDRESS_LIST) },
                     onGoNotifications = { nav.navigate(NavRoutes.NOTIFICATIONS) },
                     onGoChangePassword = { nav.navigate(NavRoutes.CHANGE_PASSWORD) },
+                    onGoCoupons = { nav.navigate(NavRoutes.COUPON_CENTER) },
+                    onGoFavorites = { nav.navigate(NavRoutes.FAVORITES) },
+                    onGoFollows = { nav.navigate(NavRoutes.FOLLOWS) },
+                    onGoFootprints = { nav.navigate(NavRoutes.FOOTPRINTS) },
                 )
             }
-
-            // ── Catalog 深层 ───────────────────────────────────────────────
             composable(NavRoutes.SEARCH) {
-                SearchScreen(
-                    onBack = { nav.popBackStack() },
-                    onGoProduct = { id -> nav.navigate(NavRoutes.productDetail(id)) },
-                )
+                SearchScreen(onBack = { nav.popBackStack() }, onGoProduct = { nav.navigate(NavRoutes.productDetail(it)) })
             }
             composable(NavRoutes.PRODUCT_DETAIL) {
                 ProductDetailScreen(
                     onBack = { nav.popBackStack() },
                     onGoCart = { nav.navigate(NavRoutes.CART) },
-                    onGoShop = { id -> nav.navigate(NavRoutes.shopDetail(id)) },
-                    onGoProduct = { id -> nav.navigate(NavRoutes.productDetail(id)) },
+                    onGoShop = { nav.navigate(NavRoutes.shopDetail(it)) },
+                    onGoProduct = { nav.navigate(NavRoutes.productDetail(it)) },
                 )
             }
             composable(NavRoutes.CATEGORY_LIST) {
-                CategoryListScreen(
+                CategoryListScreen(onBack = { nav.popBackStack() }, onGoProduct = { nav.navigate(NavRoutes.productDetail(it)) })
+            }
+            composable(NavRoutes.SHOP_DETAIL) {
+                ShopDetailScreen(
                     onBack = { nav.popBackStack() },
-                    onGoProduct = { id -> nav.navigate(NavRoutes.productDetail(id)) },
+                    onGoProduct = { nav.navigate(NavRoutes.productDetail(it)) },
                 )
             }
-
-            // ── Checkout / Payment ────────────────────────────────────────
             composable(NavRoutes.CHECKOUT + "?ids={ids}") {
                 CheckoutScreen(
                     onBack = { nav.popBackStack() },
@@ -207,122 +196,135 @@ private fun MainGraphHost() {
             composable(NavRoutes.MOCK_PAYMENT) {
                 MockPaymentScreen(
                     onPaid = { orderId ->
-                        nav.navigate(NavRoutes.orderDetail(orderId)) {
-                            popUpTo(NavRoutes.CART)
-                        }
+                        nav.navigate(NavRoutes.orderDetail(orderId)) { popUpTo(NavRoutes.CART) }
                     },
                     onCancel = { nav.popBackStack() },
                 )
             }
-
-            // ── Orders ────────────────────────────────────────────────────
             composable(NavRoutes.ORDER_LIST) {
                 OrderListScreen(
                     onBack = { nav.popBackStack() },
-                    onOpenOrder = { id -> nav.navigate(NavRoutes.orderDetail(id)) },
-                    onPayOrder = { id ->
-                        nav.navigate(NavRoutes.mockPayment(sessionId = 0L, orderId = id))
-                    },
+                    onOpenOrder = { nav.navigate(NavRoutes.orderDetail(it)) },
+                    onPayOrder = { nav.navigate(NavRoutes.mockPayment(sessionId = 0L, orderId = it)) },
                 )
             }
             composable(NavRoutes.ORDER_DETAIL) {
                 OrderDetailScreen(
                     onBack = { nav.popBackStack() },
-                    onPay = { id ->
-                        nav.navigate(NavRoutes.mockPayment(sessionId = 0L, orderId = id))
-                    },
-                    onAftersalesApply = { orderId ->
-                        nav.navigate(NavRoutes.aftersalesApply(orderId))
-                    },
+                    onPay = { nav.navigate(NavRoutes.mockPayment(sessionId = 0L, orderId = it)) },
+                    onAftersalesApply = { nav.navigate(NavRoutes.aftersalesApply(it)) },
                 )
             }
-
-            // ── Aftersales ────────────────────────────────────────────────
             composable(NavRoutes.AFTERSALES_APPLY) {
                 AftersalesApplyScreen(
                     onBack = { nav.popBackStack() },
                     onSubmitted = { asId ->
-                        nav.navigate(NavRoutes.aftersalesDetail(asId)) {
-                            popUpTo(NavRoutes.ORDER_LIST)
-                        }
+                        nav.navigate(NavRoutes.aftersalesDetail(asId)) { popUpTo(NavRoutes.ORDER_LIST) }
                     },
                 )
             }
             composable(NavRoutes.AFTERSALES_LIST) {
-                AftersalesListScreen(
-                    onBack = { nav.popBackStack() },
-                    onOpen = { id -> nav.navigate(NavRoutes.aftersalesDetail(id)) },
-                )
+                AftersalesListScreen(onBack = { nav.popBackStack() }, onOpen = { nav.navigate(NavRoutes.aftersalesDetail(it)) })
             }
             composable(NavRoutes.AFTERSALES_DETAIL) {
                 AftersalesDetailScreen(onBack = { nav.popBackStack() })
             }
-
-            // ── Addresses ─────────────────────────────────────────────────
             composable(NavRoutes.ADDRESS_LIST) {
-                AddressListScreen(
-                    onBack = { nav.popBackStack() },
-                    onAdd = { nav.navigate(NavRoutes.addressEdit(null)) },
-                    onEdit = { id -> nav.navigate(NavRoutes.addressEdit(id)) },
-                )
+                AddressListScreen(onBack = { nav.popBackStack() }, onAdd = { nav.navigate(NavRoutes.addressEdit(null)) }, onEdit = { nav.navigate(NavRoutes.addressEdit(it)) })
             }
             composable(NavRoutes.ADDRESS_EDIT) {
-                AddressEditScreen(
-                    onBack = { nav.popBackStack() },
-                    onSaved = { nav.popBackStack() },
-                )
+                AddressEditScreen(onBack = { nav.popBackStack() }, onSaved = { nav.popBackStack() })
             }
-
-            // ── Notifications ─────────────────────────────────────────────
             composable(NavRoutes.NOTIFICATIONS) {
                 NotificationListScreen(
                     onBack = { nav.popBackStack() },
                     onOpenAction = { notif ->
-                        // 依据 related_type/related_id 跳目标页
                         when (notif.relatedType) {
                             "order" -> notif.relatedId?.let { nav.navigate(NavRoutes.orderDetail(it)) }
                             "aftersales" -> notif.relatedId?.let { nav.navigate(NavRoutes.aftersalesDetail(it)) }
-                            else -> Unit
                         }
                     },
                 )
             }
-
-            // ── Profile 深层 ──────────────────────────────────────────────
             composable(NavRoutes.CHANGE_PASSWORD) {
                 ChangePasswordScreen(onBack = { nav.popBackStack() })
+            }
+            composable(NavRoutes.ACTIVITY_HALL) {
+                ActivityHallScreen(onBack = { nav.popBackStack() }, onOpenCoupons = { nav.navigate(NavRoutes.COUPON_CENTER) }, onOpenProduct = { nav.navigate(NavRoutes.productDetail(it)) })
+            }
+            composable(NavRoutes.COUPON_CENTER) {
+                CouponCenterScreen(onBack = { nav.popBackStack() })
+            }
+            composable(NavRoutes.FAVORITES) {
+                FavoritesScreen(onBack = { nav.popBackStack() }, onOpenProduct = { nav.navigate(NavRoutes.productDetail(it)) })
+            }
+            composable(NavRoutes.FOLLOWS) {
+                FollowsScreen(onBack = { nav.popBackStack() })
+            }
+            composable(NavRoutes.FOOTPRINTS) {
+                FootprintsScreen(onBack = { nav.popBackStack() }, onOpenProduct = { nav.navigate(NavRoutes.productDetail(it)) })
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Bottom navigation
-// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun MerchantGraphHost() {
+    val nav = rememberNavController()
+    val backStackEntry by nav.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val showBottomBar = currentRoute in merchantBottomTabRoutes
 
-private val bottomTabRoutes = setOf(
-    NavRoutes.HOME, NavRoutes.CATEGORY, NavRoutes.CART, NavRoutes.PROFILE,
-)
+    Scaffold(bottomBar = { if (showBottomBar) BottomBar(nav, merchantBottomTabs) }) { innerPadding ->
+        NavHost(navController = nav, startDestination = NavRoutes.MERCHANT_DASHBOARD, modifier = Modifier.padding(innerPadding)) {
+            composable(NavRoutes.MERCHANT_DASHBOARD) {
+                MerchantDashboardScreen(
+                    onGoProducts = { nav.navigate(NavRoutes.MERCHANT_PRODUCTS) },
+                    onGoShipping = { nav.navigate(NavRoutes.MERCHANT_SHIPPING) },
+                    onGoMessages = { nav.navigate(NavRoutes.MERCHANT_MESSAGES) },
+                    onGoReviews = { nav.navigate(NavRoutes.MERCHANT_REVIEWS) },
+                    onGoDecoration = { nav.navigate(NavRoutes.MERCHANT_DECORATION) },
+                    onGoOrders = { nav.navigate(NavRoutes.MERCHANT_ORDERS) },
+                    onGoAftersales = { nav.navigate(NavRoutes.MERCHANT_AFTERSALES) },
+                )
+            }
+            composable(NavRoutes.MERCHANT_PRODUCTS) { MerchantProductsScreen() }
+            composable(NavRoutes.MERCHANT_ORDERS) { MerchantOrdersScreen() }
+            composable(NavRoutes.MERCHANT_AFTERSALES) { MerchantAftersalesScreen() }
+            composable(NavRoutes.MERCHANT_ACCOUNT) { MerchantAccountScreen(onGoDecoration = { nav.navigate(NavRoutes.MERCHANT_DECORATION) }) }
+            composable(NavRoutes.MERCHANT_SHIPPING) { MerchantShippingScreen() }
+            composable(NavRoutes.MERCHANT_MESSAGES) { MerchantMessagesScreen() }
+            composable(NavRoutes.MERCHANT_REVIEWS) { MerchantReviewsScreen() }
+            composable(NavRoutes.MERCHANT_DECORATION) { MerchantDecorationScreen() }
+        }
+    }
+}
 
-private data class BottomTab(
-    val route: String,
-    val label: String,
-    val icon: ImageVector,
-)
+private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
 
-private val bottomTabs = listOf(
+private val userBottomTabRoutes = setOf(NavRoutes.HOME, NavRoutes.CATEGORY, NavRoutes.CART, NavRoutes.PROFILE)
+private val merchantBottomTabRoutes = setOf(NavRoutes.MERCHANT_DASHBOARD, NavRoutes.MERCHANT_PRODUCTS, NavRoutes.MERCHANT_ORDERS, NavRoutes.MERCHANT_ACCOUNT)
+
+private val userBottomTabs = listOf(
     BottomTab(NavRoutes.HOME, "首页", Icons.Outlined.Home),
     BottomTab(NavRoutes.CATEGORY, "分类", Icons.Outlined.Category),
     BottomTab(NavRoutes.CART, "购物车", Icons.Outlined.ShoppingCart),
     BottomTab(NavRoutes.PROFILE, "我的", Icons.Outlined.Person),
 )
 
+private val merchantBottomTabs = listOf(
+    BottomTab(NavRoutes.MERCHANT_DASHBOARD, "工作台", Icons.Outlined.Storefront),
+    BottomTab(NavRoutes.MERCHANT_PRODUCTS, "商品", Icons.Outlined.Category),
+    BottomTab(NavRoutes.MERCHANT_ORDERS, "订单", Icons.Outlined.ShoppingCart),
+    BottomTab(NavRoutes.MERCHANT_ACCOUNT, "账号", Icons.Outlined.Person),
+)
+
 @Composable
-private fun BottomBar(nav: NavHostController) {
+private fun BottomBar(nav: NavHostController, tabs: List<BottomTab>) {
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     NavigationBar {
-        bottomTabs.forEach { tab ->
+        tabs.forEach { tab ->
             NavigationBarItem(
                 selected = backStackEntry?.destination?.hierarchy?.any { it.route == tab.route } == true,
                 onClick = {

@@ -3,6 +3,7 @@ package com.jdclone.app.ui.screen.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jdclone.app.data.repository.AuthRepository
+import com.jdclone.app.data.repository.MerchantRepository
 import com.jdclone.app.ui.common.UiState
 import com.jdclone.app.ui.common.errorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,7 +13,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** 单事件 —— 提交完成的通知（成功导航到主界面等）。 */
+enum class LoginMode {
+    USER,
+    MERCHANT,
+}
+
 sealed interface AuthEffect {
     data object LoginSuccess : AuthEffect
     data object RegisterSuccess : AuthEffect
@@ -22,6 +27,7 @@ sealed interface AuthEffect {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repo: AuthRepository,
+    private val merchantRepo: MerchantRepository,
 ) : ViewModel() {
 
     private val _mutation = MutableStateFlow<UiState<Unit>>(UiState.Success(Unit))
@@ -30,22 +36,30 @@ class AuthViewModel @Inject constructor(
     private val _effect = MutableStateFlow<AuthEffect?>(null)
     val effect: StateFlow<AuthEffect?> = _effect.asStateFlow()
 
-    fun clearEffect() { _effect.value = null }
-    fun clearMutation() { _mutation.value = UiState.Success(Unit) }
+    fun clearEffect() {
+        _effect.value = null
+    }
 
-    fun login(identifier: String, password: String) {
+    fun clearMutation() {
+        _mutation.value = UiState.Success(Unit)
+    }
+
+    fun login(identifier: String, password: String, mode: LoginMode) {
         if (identifier.isBlank() || password.isBlank()) {
             _mutation.value = UiState.Error("请输入账号和密码")
             return
         }
         _mutation.value = UiState.Loading
         viewModelScope.launch {
-            val r = repo.login(identifier.trim(), password)
-            _mutation.value = r.fold(
+            val result = when (mode) {
+                LoginMode.USER -> repo.login(identifier.trim(), password).map { Unit }
+                LoginMode.MERCHANT -> merchantRepo.login(identifier.trim(), password).map { Unit }
+            }
+            _mutation.value = result.fold(
                 onSuccess = { UiState.Success(Unit) },
                 onFailure = { UiState.Error(errorMessage(it)) },
             )
-            if (r.isSuccess) _effect.value = AuthEffect.LoginSuccess
+            if (result.isSuccess) _effect.value = AuthEffect.LoginSuccess
         }
     }
 
@@ -93,7 +107,7 @@ class AuthViewModel @Inject constructor(
                 onSuccess = { UiState.Success(Unit) },
                 onFailure = { UiState.Error(errorMessage(it)) },
             )
-            if (r.isSuccess) _effect.value = AuthEffect.Info("验证码已发送，请查看后台日志")
+            if (r.isSuccess) _effect.value = AuthEffect.Info("验证码已发送，请查看后端日志")
         }
     }
 

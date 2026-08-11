@@ -83,6 +83,15 @@ cd android-app && gradle wrapper --gradle-version 8.10.2 && ./gradlew assembleDe
 - Admin：`admin_super / Passw0rd!` · `admin_business / Passw0rd!` · `admin_cs / Passw0rd!` · `admin_tech / Passw0rd!`
 - User：`13800000001 / Passw0rd!` · `13800000002 / Passw0rd!`
 
+**Android 实际可用账号**（以 `backend/app/scripts/seed.py` 与 Android 登录页提示为准）：
+- Android 用户端：`13800000001 / Test1234` · `13800000002 / Test1234`
+- Android 商家端：`shop1_owner / Merch1234`
+
+> 说明：
+> - 当前 README 里的 User 密码 `Passw0rd!` 与 Android/seed 实际数据不一致。
+> - Android 用户端应使用 `Test1234`。
+> - 商家端 Android 登录提示与 seed 一致，均为 `shop1_owner / Merch1234`。
+
 跑测试 / 数据库迁移 / 加新 Phase 请阅读 [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)。
 
 ## 目录结构
