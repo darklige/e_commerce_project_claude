@@ -15,10 +15,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jdclone.app.data.local.AuthState
+import com.jdclone.app.data.local.SessionPrincipal
 import com.jdclone.app.ui.common.DangerButton
 import com.jdclone.app.ui.common.PrimaryButton
 import com.jdclone.app.ui.common.RemoteImage
@@ -58,6 +63,10 @@ fun ProfileScreen(
     onGoAddresses: () -> Unit,
     onGoNotifications: () -> Unit,
     onGoChangePassword: () -> Unit,
+    onGoCoupons: () -> Unit,
+    onGoFavorites: () -> Unit,
+    onGoFollows: () -> Unit,
+    onGoFootprints: () -> Unit,
     vm: ProfileViewModel = hiltViewModel(),
 ) {
     val authState by vm.authState.collectAsStateWithLifecycle()
@@ -67,7 +76,8 @@ fun ProfileScreen(
     LaunchedEffect(ui.toast) {
         val toast = ui.toast
         if (!toast.isNullOrBlank()) {
-            snackbar.showSnackbar(toast); vm.clearToast()
+            snackbar.showSnackbar(toast)
+            vm.clearToast()
         }
     }
 
@@ -76,25 +86,36 @@ fun ProfileScreen(
         snackbarHost = { SnackbarHost(snackbar) },
     ) { pad ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(pad)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (val s = authState) {
                 AuthState.Loading -> Unit
                 AuthState.LoggedOut -> LoginCard(onGoLogin = onGoLogin)
-                is AuthState.LoggedIn -> UserCard(displayName = s.user.nickname, identifier = displayIdentifier(s.user.phone, s.user.email))
+                is AuthState.LoggedIn -> when (val principal = s.principal) {
+                    is SessionPrincipal.User -> UserCard(
+                        displayName = principal.user.nickname,
+                        identifier = displayIdentifier(principal.user.phone, principal.user.email),
+                    )
+                    is SessionPrincipal.Merchant -> UserCard(
+                        displayName = principal.shop.name,
+                        identifier = principal.account.loginName,
+                    )
+                }
             }
-            MenuGroup(items = listOfNotNull(
-                MenuItem("我的订单", Icons.Filled.ReceiptLong, onGoOrders),
-                MenuItem("我的售后", Icons.Filled.SupportAgent, onGoAftersales),
-                MenuItem("地址簿", Icons.Filled.LocationOn, onGoAddresses),
-                MenuItem("通知", Icons.Filled.Notifications, onGoNotifications),
-                MenuItem("修改密码", Icons.Filled.Lock, onGoChangePassword).takeIf { authState is AuthState.LoggedIn },
-            ))
+            MenuGroup(
+                items = listOf(
+                    MenuItem("我的订单", Icons.Filled.ReceiptLong, onGoOrders),
+                    MenuItem("我的售后", Icons.Filled.SupportAgent, onGoAftersales),
+                    MenuItem("优惠券中心", Icons.Filled.ConfirmationNumber, onGoCoupons),
+                    MenuItem("我的收藏", Icons.Filled.Favorite, onGoFavorites),
+                    MenuItem("店铺关注", Icons.Filled.Storefront, onGoFollows),
+                    MenuItem("浏览足迹", Icons.Filled.Bookmark, onGoFootprints),
+                    MenuItem("地址簿", Icons.Filled.LocationOn, onGoAddresses),
+                    MenuItem("通知", Icons.Filled.Notifications, onGoNotifications),
+                    MenuItem("修改密码", Icons.Filled.Lock, onGoChangePassword),
+                ),
+            )
             if (authState is AuthState.LoggedIn) {
                 Spacer(Modifier.height(8.dp))
                 DangerButton(
@@ -112,21 +133,14 @@ fun ProfileScreen(
 private fun LoginCard(onGoLogin: () -> Unit) {
     Card {
         Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("登录后开启更多功能", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
             Text(
-                text = "登录后开启更多功能",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            )
-            Text(
-                text = "浏览订单、售后、通知与个人资料",
+                "浏览订单、售后、活动券、收藏与通知",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
             )
-            PrimaryButton(
-                text = "去登录",
-                onClick = onGoLogin,
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-            )
+            PrimaryButton(text = "去登录", onClick = onGoLogin, modifier = Modifier.fillMaxWidth().height(44.dp))
         }
     }
 }
@@ -134,22 +148,13 @@ private fun LoginCard(onGoLogin: () -> Unit) {
 @Composable
 private fun UserCard(displayName: String, identifier: String) {
     Card {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(56.dp).clip(CircleShape),
-            ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(56.dp).clip(CircleShape)) {
                 RemoteImage(objectKey = null, modifier = Modifier.fillMaxSize())
             }
             Spacer(Modifier.size(12.dp))
             Column {
-                Text(
-                    text = displayName,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                )
+                Text(displayName, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
                 Text(
                     text = identifier,
                     style = MaterialTheme.typography.bodySmall,
@@ -169,10 +174,7 @@ private fun MenuGroup(items: List<MenuItem>) {
         Column {
             items.forEachIndexed { idx, item ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = item.onClick)
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = item.onClick).padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(item.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -14,20 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -115,43 +110,22 @@ private fun CategoryContent(
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                             modifier = Modifier.padding(bottom = 6.dp),
                         )
-                        val leaves = sub.children.ifEmpty { listOf(sub) }
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
-                            modifier = Modifier.fillMaxWidth(),
-                            userScrollEnabled = false,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                        ) {
-                            items(leaves, key = { it.id }) { leaf ->
-                                Card(
-                                    onClick = { onGoCategory(leaf.id) },
+                        val leaves = sub.children.ifEmpty { listOf(sub) }.chunked(3)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            leaves.forEach { rowItems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .clip(RoundedCornerShape(24.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                                        ) {
-                                            RemoteImage(
-                                                objectKey = leaf.iconUrl,
-                                                modifier = Modifier.fillMaxSize(),
-                                                cornerRadiusDp = 24,
-                                            )
-                                        }
-                                        Spacer(Modifier.size(4.dp))
-                                        Text(
-                                            leaf.name,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
+                                    rowItems.forEach { leaf ->
+                                        CategoryLeafCard(
+                                            leaf = leaf,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { onGoCategory(leaf.id) },
                                         )
+                                    }
+                                    repeat(3 - rowItems.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
                             }
@@ -159,6 +133,44 @@ private fun CategoryContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CategoryLeafCard(
+    leaf: CategoryDto,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                RemoteImage(
+                    objectKey = leaf.iconUrl,
+                    modifier = Modifier.fillMaxSize(),
+                    cornerRadiusDp = 24,
+                )
+            }
+            Spacer(Modifier.size(4.dp))
+            Text(
+                leaf.name,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+            )
         }
     }
 }

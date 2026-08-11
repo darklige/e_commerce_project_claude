@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -52,44 +53,33 @@ fun HomeScreen(
     onGoSearch: () -> Unit,
     onGoProduct: (Long) -> Unit,
     onGoCategory: (Long) -> Unit,
+    onGoActivityHall: () -> Unit,
+    onGoCouponCenter: () -> Unit,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 顶部搜索栏
         Surface(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(40.dp)
-                        .clickable { onGoSearch() },
+                    modifier = Modifier.weight(1f).height(40.dp).clickable { onGoSearch() },
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            Icons.Outlined.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.outline,
-                        )
+                        Icon(Icons.Outlined.Search, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "搜索商品",
-                            color = MaterialTheme.colorScheme.outline,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        Text("搜索商品", color = MaterialTheme.colorScheme.outline, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
@@ -98,7 +88,7 @@ fun HomeScreen(
         when (val s = state) {
             UiState.Loading -> LoadingScreen()
             is UiState.Error -> ErrorScreen(s.message, onRetry = vm::load)
-            is UiState.Success -> HomeContent(s.data, onGoProduct, onGoCategory)
+            is UiState.Success -> HomeContent(s.data, onGoProduct, onGoCategory, onGoActivityHall, onGoCouponCenter)
         }
     }
 }
@@ -108,24 +98,42 @@ private fun HomeContent(
     data: HomeState,
     onGoProduct: (Long) -> Unit,
     onGoCategory: (Long) -> Unit,
+    onGoActivityHall: () -> Unit,
+    onGoCouponCenter: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
+        contentPadding = PaddingValues(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            SectionHeader("常用类目")
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).clickable { onGoActivityHall() },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("818 数码家电会场", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("模拟活动已开启，可领券、看满减、逛会场")
+                    }
+                    Text(
+                        "领券",
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { onGoCouponCenter() },
+                    )
+                }
+            }
         }
+        item { SectionHeader("常用类目") }
         item {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height((data.categories.size.coerceAtLeast(1) / 4 + 1).let { rows ->
-                        (rows * 92).dp.coerceAtMost(300.dp)
-                    }),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                modifier = Modifier.fillMaxWidth().height((data.categories.size.coerceAtLeast(1) / 4 + 1).let { rows -> (rows * 92).dp.coerceAtMost(300.dp) }),
+                contentPadding = PaddingValues(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 userScrollEnabled = false,
@@ -139,7 +147,7 @@ private fun HomeContent(
         item {
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(data.recommendations, key = { it.id }) { spu ->
@@ -163,30 +171,16 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun CategoryGridItem(cat: CategoryDto, onClick: () -> Unit) {
     Column(
-        modifier = Modifier
-            .clickable { onClick() }
-            .padding(6.dp),
+        modifier = Modifier.clickable { onClick() }.padding(6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            RemoteImage(
-                objectKey = cat.iconUrl,
-                modifier = Modifier.fillMaxSize(),
-                cornerRadiusDp = 28,
-            )
+            RemoteImage(objectKey = cat.iconUrl, modifier = Modifier.fillMaxSize(), cornerRadiusDp = 28)
         }
         Spacer(Modifier.height(4.dp))
-        Text(
-            cat.name,
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Text(cat.name, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -198,20 +192,9 @@ private fun RecommendationCard(spu: SpuListItemDto, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column {
-            RemoteImage(
-                objectKey = spu.mainImage,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-                cornerRadiusDp = 4,
-            )
+            RemoteImage(objectKey = spu.mainImage, modifier = Modifier.fillMaxWidth().aspectRatio(1f), cornerRadiusDp = 4)
             Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                    spu.title,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Text(spu.title, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
                 PriceText(spu.minPriceCents, style = MaterialTheme.typography.bodyMedium)
             }

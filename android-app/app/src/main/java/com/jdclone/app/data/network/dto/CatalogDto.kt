@@ -8,6 +8,16 @@ import kotlinx.serialization.Serializable
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Serializable
+data class CategoryTreePayloadDto(
+    val items: List<CategoryDto> = emptyList(),
+)
+
+@Serializable
+data class SpuListPayloadDto(
+    val items: List<SpuListItemDto> = emptyList(),
+)
+
+@Serializable
 data class CategoryDto(
     val id: Long,
     @SerialName("parent_id") val parentId: Long? = null,

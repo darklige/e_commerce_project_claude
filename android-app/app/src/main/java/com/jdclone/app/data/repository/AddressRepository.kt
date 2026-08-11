@@ -13,7 +13,7 @@ import javax.inject.Singleton
 @Singleton
 class AddressRepository @Inject constructor(private val api: ApiService) {
 
-    suspend fun list(): Result<List<AddressDto>> = safeIo { api.listAddresses().unwrap() }
+    suspend fun list(): Result<List<AddressDto>> = safeIo { api.listAddresses().unwrap().items }
 
     suspend fun get(id: Long): Result<AddressDto> = safeIo { api.getAddress(id).unwrap() }
 
